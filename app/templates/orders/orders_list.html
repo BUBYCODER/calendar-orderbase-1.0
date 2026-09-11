@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Заказы{% endblock %}
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <h2>Заказы</h2>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; gap: 6px; align-items: center;">
+        <a href="?filter=all&search={{ search }}" class="tab-btn {% if filter_type == 'all' %}active{% endif %}" style="padding: 5px 14px; font-size: 13px;">Все</a>
+        <a href="?filter=batch&search={{ search }}" class="tab-btn {% if filter_type == 'batch' %}active{% endif %}" style="padding: 5px 14px; font-size: 13px;">Основные партии</a>
+        <a href="?filter=sample&search={{ search }}" class="tab-btn {% if filter_type == 'sample' %}active{% endif %}" style="padding: 5px 14px; font-size: 13px;">Образцы</a>
+    </div>
+
+    <form method="GET" action="/orders" style="display: flex; gap: 8px; flex: 1; max-width: 420px; min-width: 260px;">
+        <input type="hidden" name="filter" value="{{ filter_type }}">
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <input type="hidden" name="sort_order" value="{{ sort_order }}">
+        <input type="text" name="search" value="{{ search }}" placeholder="Поиск по номеру, названию, клиенту..." style="flex: 1; padding: 7px 12px; font-size: 13px; border: 1px solid #d1d5db; border-radius: 4px;">
+        <button type="submit" class="btn btn-outline" style="font-size: 13px; padding: 7px 14px;">Найти</button>
+        {% if search %}
+        <a href="/orders?filter={{ filter_type }}" class="btn btn-outline" style="font-size: 13px; padding: 7px 10px; color: #dc2626;" title="Сбросить поиск">Сбросить</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="table-container">
+    <table class="orders-table">
+        <thead>
+            <tr>
+                <th><a href="?sort_by=order_number&sort_order={{ next_sort_order if sort_by == 'order_number' else 'desc' }}&filter={{ filter_type }}&search={{ search }}">№ {% if sort_by == 'order_number' %}{{ '↑' if sort_order == 'asc' else '↓' }}{% endif %}</a></th>
+                <th><a href="?sort_by=created_at&sort_order={{ next_sort_order if sort_by == 'created_at' else 'desc' }}&filter={{ filter_type }}&search={{ search }}">Дата оформления {% if sort_by == 'created_at' %}{{ '↑' if sort_order == 'asc' else '↓' }}{% endif %}</a></th>
+                <th>Название</th>
+                <th><a href="?sort_by=order_type&sort_order={{ next_sort_order if sort_by == 'order_type' else 'desc' }}&filter={{ filter_type }}&search={{ search }}">Тип заказа {% if sort_by == 'order_type' %}{{ '↑' if sort_order == 'asc' else '↓' }}{% endif %}</a></th>
+                <th>Контрагент / Клиент</th>
+                <th><a href="?sort_by=amount&sort_order={{ next_sort_order if sort_by == 'amount' else 'desc' }}&filter={{ filter_type }}&search={{ search }}">Сумма {% if sort_by == 'amount' %}{{ '↑' if sort_order == 'asc' else '↓' }}{% endif %}</a></th>
+                <th>Кол-во</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr class="order-row" onclick="location.href='/orders/{{ order.id }}'">
+                <td style="font-weight: 700; color: #2563eb;">#{{ order.order_number or order.id }}</td>
+                <td style="color: #6b7280; font-size: 13px;">{{ order.created_at[:10] if order.created_at else '-' }}</td>
+                <td style="font-weight: 600;">{{ order.name }}</td>
+                <td>
+                    <span style="font-size: 11px; font-weight: 600; background: {% if order.order_type == 'sample' %}#f3f4f6; color:#4b5563;{% else %}#eff6ff; color:#1d4ed8;{% endif %}; padding: 3px 8px; border-radius: 4px;">
+                        {{ 'Образец' if order.order_type == 'sample' else 'Основная партия' }}
+                    </span>
+                </td>
+                <td>{{ order.client_name or '-' }}</td>
+                <td style="font-weight: 600; color: #059669;">
+                    {{ "{:,.0f}".format(order.amount).replace(',', ' ') if order.amount else '—' }} {% if order.amount %}₽{% endif %}
+                </td>
+                <td style="font-weight: 600;">{{ order.quantity or 0 }} шт.</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="padding: 30px; text-align: center; color: #6b7280;">
+                    {% if search %}По запросу "{{ search }}" ничего не найдено{% else %}Заказов пока нет{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .table-container { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow-x: auto; margin-bottom: 30px; }
+    .orders-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+    .orders-table th { padding: 14px 16px; background: #f9fafb; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151; white-space: nowrap; }
+    .orders-table th a { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+    .orders-table th a:hover { color: #2563eb; }
+    .orders-table td { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; }
+    .order-row { transition: background-color 0.15s ease; cursor: pointer; }
+    .order-row:hover { background-color: #f8fafc; }
+    body.dark-theme .table-container { background: #1e1e1e; box-shadow: none; border: 1px solid #333; }
+    body.dark-theme .orders-table th { background: #2d2d2d; border-bottom: 2px solid #444; color: #d1d5db; }
+    body.dark-theme .orders-table td { border-bottom: 1px solid #444; }
+    body.dark-theme .order-row:hover { background-color: #2d2d2d; }
+    body.dark-theme .orders-table td[style*="color: #6b7280"] { color: #9ca3af !important; }
+</style>
+{% endblock %}

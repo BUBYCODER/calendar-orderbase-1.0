@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Bomonti{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <a href="/" class="logo">Bomonti</a>
+                <nav class="nav" style="display: flex; gap: 14px; align-items: center;">
+                    <a href="/" class="nav-link" {% if request.path == "/" or request.path.startswith("/day") %}style="font-weight: 700; color: #60a5fa;"{% endif %}>Календарь</a>
+                    <a href="/orders" class="nav-link" {% if request.path.startswith("/orders") %}style="font-weight: 700; color: #60a5fa;"{% endif %}>Заказы</a>
+                </nav>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 12px;">
+                                <a href="/add_order" class="btn btn-primary">+ Заказ</a>
+                <button onclick="toggleDarkMode()" class="btn btn-outline dark-mode-toggle" style="padding: 6px; display: flex; align-items: center; justify-content: center; height: 34px; width: 34px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 15px;">
+            <span>Bomonti Production</span>
+            <div style="display: flex; gap: 20px; font-size: 12px;">
+                <a href="#" onclick="openDraftsModal(); return false;" id="footerDraftsLink" style="color: #6b7280; text-decoration: none;">Черновики <span id="draftsBadge" style="display:none; font-weight:700; color:#2563eb;">(0)</span></a>
+                <a href="#" onclick="openDevModal(); return false;" style="color: #6b7280; text-decoration: none;">Управление БД</a>
+            </div>
+        </div>
+    </footer>
+
+    <div id="devModal" class="modal-overlay" onclick="if(event.target===this) closeDevModal()">
+        <div class="modal-content" style="max-width: 440px;">
+            <span class="modal-close" onclick="closeDevModal()">&times;</span>
+            <h3 style="margin-bottom: 15px;">Управление базой данных</h3>
+            <p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">Резервное копирование и восстановление SQLite БД (production.db).</p>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <a href="/download_db" class="btn btn-outline" style="text-align: center;">Скачать резервную копию (.db)</a>
+                <form action="/upload_db" method="POST" enctype="multipart/form-data" style="margin: 0;">
+                    <label class="btn btn-outline" style="width: 100%; text-align: center; cursor: pointer; display: block;">
+                        Загрузить БД из файла
+                        <input type="file" name="file" accept=".db" style="display:none;" onchange="this.form.submit()">
+                    </label>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="orderModal" class="modal-overlay" onclick="closeModalOutside(event)">
+        <div class="modal-content" id="orderModalContent">
+            <span class="modal-close" onclick="closeOrderModal()">&times;</span>
+            <div id="orderModalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-theme');
+            localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('theme') === 'dark') {
+                document.body.classList.add('dark-theme');
+            }
+        });
+
+        function openDevModal() { document.getElementById('devModal').classList.add('active'); }
+        function closeDevModal() { document.getElementById('devModal').classList.remove('active'); }
+
+        function openOrderModal(orderId) {
+            fetch('/order/' + orderId).then(r => r.json()).then(data => {
+                if (data.error) { alert(data.error); return; }
+                const body = document.getElementById('orderModalBody');
+                
+                let stagesHtml = '';
+                if (data.order_type === 'sample') {
+                    stagesHtml = data.stages.map(s => `
+                        <div class="stage-info-item sample-stage-item">${s.stage_type}</div>
+                    `).join('');
+                } else {
+                    stagesHtml = data.stages.map(s => `
+                        <div class="stage-info-item batch-stage-item">
+                            <strong>${s.stage_type}</strong> (${s.duration_days} дн.)<br>
+                            <span class="stage-info-dates">${s.start_formatted} — ${s.end_formatted}</span>
+                        </div>
+                    `).join('');
+                }
+                
+                const typeName = data.order_type === 'sample' ? 'ОБРАЗЕЦ' : 'ОСНОВНАЯ ПАРТИЯ';
+                const commentHtml = data.comment ? `
+                    <div style="margin-bottom: 15px; padding: 10px 12px; background: rgba(245,158,11,0.1); border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 13px;">
+                        <strong>Комментарий:</strong> ${data.comment}
+                    </div>
+                ` : '';
+
+                body.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                        <h2 style="margin: 0;">#${data.order_number || data.id} ${data.name}</h2>
+                        <span style="font-size:12px; background:#e5e7eb; color:#333; padding:2px 6px; border-radius:4px; font-weight:700;">${typeName}</span>
+                    </div>
+                    <p style="margin-bottom: 12px; font-size: 14px; line-height: 1.6;">
+                        <strong>Клиент/Бренд:</strong> ${data.client || 'Не указан'} <br>
+                        <strong>Контакт:</strong> ${data.contact || 'Не указан'} <br>
+                        <strong>Количество:</strong> <strong>${data.quantity || 0} шт.</strong>
+                    </p>
+                    
+                    ${commentHtml}
+                    
+                    <div style="background: rgba(37,99,235,0.08); padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                        <p style="margin-bottom: 4px;"><strong>Старт производства:</strong> ${data.start_date} (ч.${data.start_q})</p>
+                        <p><strong>Общая длительность:</strong> ${data.total_duration} дн.</p>
+                    </div>
+                    
+                    <h4 style="margin-top:20px; margin-bottom:10px;">Этапы производства:</h4>
+                    <div>${stagesHtml}</div>
+                    
+                    <div style="margin-top:25px; display:flex; gap:10px; flex-wrap:wrap;">
+                        <a href="/orders/${data.id}?from=calendar" class="btn btn-primary" style="flex:1; min-width:140px; text-align:center;">Карточка заказа</a>
+                        <a href="/edit_order/${data.id}" class="btn btn-outline" style="flex:1; min-width:140px; text-align:center;">Редактировать</a>
+                        <form action="/delete_order/${data.id}" method="POST" style="flex:1; min-width:120px; display:flex;" onsubmit="return confirm('Вы уверены, что хотите полностью удалить этот заказ и все его этапы?');">
+                            <button type="submit" class="btn btn-danger" style="width:100%;">Удалить</button>
+                        </form>
+                    </div>
+                `;
+                document.getElementById('orderModal').classList.add('active');
+            }).catch(err => alert('Ошибка загрузки заказа'));
+        }
+        function closeOrderModal() { document.getElementById('orderModal').classList.remove('active'); }
+        function closeModalOutside(event) { if (event.target === document.getElementById('orderModal')) closeOrderModal(); }
+        document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeOrderModal(); closeDevModal(); } });
+    </script>
+
+    <!-- Модальное окно раздела черновиков -->
+    <div id="draftsModal" class="modal-overlay" onclick="if(event.target===this) closeDraftsModal()">
+        <div class="modal-content" style="max-width: 580px;">
+            <span class="modal-close" onclick="closeDraftsModal()">&times;</span>
+            <h3 style="margin-bottom: 6px; color:#2563eb;">Раздел черновиков</h3>
+            <p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">Незавершённые заказы. Выберите черновик, чтобы продолжить оформление.</p>
+            <div id="draftsListContainer" style="display: flex; flex-direction: column; gap: 10px; max-height: 55vh; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchDraftsCount() {
+            try {
+                const res = await fetch('/api/drafts');
+                const list = await res.json();
+                const badge = document.getElementById('draftsBadge');
+                if (badge) {
+                    if (list.length > 0) {
+                        badge.textContent = '(' + list.length + ')';
+                        badge.style.display = 'inline';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            } catch(e) {}
+        }
+
+        async function openDraftsModal() {
+            document.getElementById('draftsModal').classList.add('active');
+            const cont = document.getElementById('draftsListContainer');
+            cont.innerHTML = '<div style="text-align:center; padding:20px; color:#6b7280;">Загрузка...</div>';
+            try {
+                const res = await fetch('/api/drafts');
+                const list = await res.json();
+                if (!list.length) {
+                    cont.innerHTML = '<div style="text-align:center; padding:30px; color:#6b7280;">Нет сохранённых черновиков</div>';
+                    return;
+                }
+                cont.innerHTML = list.map(d => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:rgba(0,0,0,0.02); border:1px solid #e2e8f0; border-radius:6px;">
+                        <div>
+                            <div style="font-weight:700; color:#1e40af; font-size:14px;">${d.title}</div>
+                            <div style="font-size:11px; color:#6b7280; margin-top:2px;">Сохранён: ${d.updated_at ? d.updated_at.slice(0,16) : '-'}</div>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <a href="/add_order?draft_id=${d.id}" class="btn btn-primary" style="padding:4px 12px; font-size:12px;">Продолжить</a>
+                            <button type="button" class="btn btn-danger" style="padding:4px 10px; font-size:12px;" onclick="deleteDraftItem(${d.id})">Удалить</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                cont.innerHTML = '<div style="color:#dc2626; text-align:center;">Ошибка загрузки черновиков</div>';
+            }
+        }
+
+        function closeDraftsModal() {
+            document.getElementById('draftsModal').classList.remove('active');
+        }
+
+        async function deleteDraftItem(id) {
+            if (!confirm('Удалить этот черновик?')) return;
+            await fetch('/api/drafts/' + id, { method: 'DELETE' });
+            openDraftsModal();
+            fetchDraftsCount();
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchDraftsCount);
+    </script>
+</body>
+
+</html>

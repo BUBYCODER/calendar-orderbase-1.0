@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Заказ №{{ order.order_number or order.id }} - {{ order.name }}{% endblock %}
+{% block content %}
+<div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <a href="{% if back_url == 'calendar' %}/?year={{ order.start_date.split('-')[0] }}&month={{ order.start_date.split('-')[1]|int }}{% else %}/orders{% endif %}" class="btn btn-outline" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+        ← {% if back_url == 'calendar' %}В календарь{% else %}В заказы{% endif %}
+    </a>
+    
+    <div style="display: flex; gap: 10px;">
+        <a href="/?year={{ order.start_date.split('-')[0] }}&month={{ order.start_date.split('-')[1]|int }}&tab={{ order.order_type }}" class="btn btn-outline" style="border-color:#2563eb; color:#2563eb; font-weight:600;">
+            Открыть в календаре
+        </a>
+        <a href="/edit_order/{{ order.id }}" class="btn btn-primary">Редактировать</a>
+        <form action="/delete_order/{{ order.id }}" method="POST" style="display:inline;" onsubmit="return confirm('Вы уверены, что хотите полностью удалить этот заказ?');">
+            <button type="submit" class="btn btn-danger">Удалить</button>
+        </form>
+    </div>
+</div>
+
+<div class="card-box" style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px;">
+        <div>
+            <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Заказ #{{ order.order_number or order.id }} &bull; Оформлен: {{ order.created_at[:10] if order.created_at else '-' }}</div>
+            <h1 style="font-size: 24px; color: inherit; margin: 0;">{{ order.name }}</h1>
+        </div>
+        <div>
+            <span style="font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 6px; text-transform: uppercase; background: {% if order.order_type == 'sample' %}#e5e7eb; color:#374151;{% else %}#dbeafe; color:#1e40af;{% endif %}">
+                {{ 'ОБРАЗЕЦ' if order.order_type == 'sample' else 'ОСНОВНАЯ ПАРТИЯ' }}
+            </span>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+        <div class="info-block">
+            <h4 style="margin-bottom: 12px; color: #2563eb;">Контрагент и Контакты</h4>
+            <div class="info-row"><span>Клиент/Бренд:</span> <strong>{{ order.client_name or '-' }}</strong></div>
+            <div class="info-row"><span>Способ связи:</span> <strong>{{ order.contact_type or 'Телефон' }}</strong></div>
+            <div class="info-row"><span>Контакт:</span> <strong>{{ order.contact or '-' }}</strong></div>
+        </div>
+
+        <div class="info-block">
+            <h4 style="margin-bottom: 12px; color: #2563eb;">Финансы и объём</h4>
+            <div class="info-row">
+                <span>Общий тираж:</span> <strong style="font-size: 16px; color: #2563eb;">{{ order.quantity or 0 }} шт.</strong>
+            </div>
+            <div class="info-row">
+                <span>Сумма заказа:</span> <strong style="font-size: 16px; color: #059669;">{{ "{:,.0f}".format(order.amount).replace(',', ' ') if order.amount else 0 }} ₽</strong>
+            </div>
+        </div>
+    </div>
+
+    {% if order.comment %}
+    <div style="margin-top: 20px; padding: 12px 16px; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 4px;">
+        <strong>Комментарий к заказу:</strong> {{ order.comment }}
+    </div>
+    {% endif %}
+</div>
+
+{% if items %}
+<div class="card-box" style="margin-bottom: 20px;">
+    <h3 style="margin-bottom: 15px; color: #2563eb;">Состав заказа (Изделия и размерная сетка)</h3>
+    <div style="display: grid; gap: 15px;">
+        {% for it in items %}
+        <div style="background: rgba(0,0,0,0.02); border: 1px solid #e5e7eb; border-radius: 6px; padding: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong style="font-size: 15px; color: #1e40af;">Позиция #{{ it.position_index }}: {{ it.product_name }}</strong>
+                <span style="font-weight: 700; color: #2563eb;">{{ it.total_quantity }} шт.</span>
+            </div>
+            <div style="font-size: 13px; color: #4b5563; margin-bottom: 10px; display: flex; gap: 15px; flex-wrap: wrap;">
+                <span><strong>Крой:</strong> {{ it.pattern_name or '—' }}</span>
+                <span><strong>Полотно:</strong> {{ it.fabric_name or '—' }}</span>
+                <span><strong>Плотность:</strong> {{ it.fabric_density or '—' }}</span>
+                <span><strong>Цвет:</strong> {{ it.fabric_color or '—' }}</span>
+            </div>
+
+            <div style="overflow-x: auto; margin-bottom: 8px;">
+                <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 12px; background: #fff;">
+                    <thead>
+                        <tr style="background: #f1f5f9;">
+                            <th style="border: 1px solid #cbd5e1; padding: 4px;">3XS</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 4px;">2XS</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 4px;">XS</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 4px;">S</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 4px;">M</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 4px;">L</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 4px;">XL</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 4px;">2XL</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 4px;">3XL</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 4px;">One Size</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 4px; background: #eff6ff; color: #1d4ed8;">ИТОГО</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_3xs }}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_2xs }}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_xs }}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_s }}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_m }}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_l }}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_xl }}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_2xl }}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_3xl }}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_onesize }}</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 4px; font-weight: 700; background: #eff6ff; color: #1d4ed8;">{{ it.total_quantity }} шт.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            {% if it.embellishments_list %}
+            <div style="font-size: 12px; margin-top: 8px;">
+                <strong>Нанесения:</strong>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+                    {% for emb in it.embellishments_list %}
+                    <span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-weight: 600;">
+                        {{ emb.type }} ({{ emb.format }}) — {{ emb.quantity }} шт.
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card-box" style="margin-bottom: 20px;">
+    <h3 style="margin-bottom: 15px;">Прикрепленные макеты и файлы ({{ files|length }})</h3>
+    {% if files %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+        {% for f in files %}
+        <div class="file-card">
+            {% set ext = f.file_name.split('.')[-1].lower() %}
+            {% if ext in ['png', 'jpg', 'jpeg', 'webp', 'gif'] %}
+                <a href="/static/{{ f.file_path }}" target="_blank">
+                    <img src="/static/{{ f.file_path }}" alt="{{ f.file_name }}" style="width:100%; height:110px; object-fit:cover; border-radius:4px; margin-bottom:8px;">
+                </a>
+            {% else %}
+                <div style="height:110px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.04); border-radius:4px; font-size:24px; margin-bottom:8px;">
+                    ФАЙЛ
+                </div>
+            {% endif %}
+            <div style="font-size:12px; font-weight:600; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="{{ f.file_name }}">
+                {{ f.file_name }}
+            </div>
+            <a href="/static/{{ f.file_path }}" download="{{ f.file_name }}" class="btn btn-outline" style="display:block; text-align:center; font-size:11px; padding:4px; margin-top:6px;">Скачать</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="color:#6b7280; font-size:13px;">Файлы и макеты не прикреплены.</div>
+    {% endif %}
+</div>
+
+<div class="card-box">
+    <h3 style="margin-bottom: 15px;">График производства ({{ total_duration }} дн.)</h3>
+    <div style="margin-bottom: 15px; font-size: 14px;">
+        Старт: <strong>{{ order.start_date|format_date }} (ч.{{ order.start_q }})</strong> &bull; 
+        Финиш: <strong>{{ order.end_date|format_date }} (ч.{{ order.end_q }})</strong>
+    </div>
+
+    <div style="display: grid; gap: 10px;">
+        {% for s in stages %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(0,0,0,0.02); border-left:4px solid #2563eb; border-radius:4px;">
+            <div>
+                <strong>{{ s.stage_type }}</strong> 
+                <span style="font-size:12px; color:#6b7280; margin-left:10px;">({{ s.duration_days }} дн.)</span>
+            </div>
+            <div style="font-size:13px; font-weight:600; color:#2563eb;">
+                {{ s.start_date|format_date }} (ч.{{ s.start_q }}) — {{ s.end_date|format_date }} (ч.{{ s.end_q }})
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .card-box { background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .info-block { background: #f9fafb; padding: 16px; border-radius: 6px; border: 1px solid #e5e7eb; }
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+    .info-row span { color: #6b7280; }
+    .file-card { border: 1px solid #e5e7eb; padding: 10px; border-radius: 6px; background: #fff; }
+    
+    body.dark-theme .card-box { background: #1e1e1e; border: 1px solid #333; box-shadow: none; }
+    body.dark-theme .info-block { background: #2d2d2d; border-color: #444; }
+    body.dark-theme .info-row span { color: #9ca3af; }
+    body.dark-theme .file-card { background: #2d2d2d; border-color: #444; }
+</style>
+{% endblock %}

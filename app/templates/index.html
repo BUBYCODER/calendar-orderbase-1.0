@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Календарь{% endblock %}
+{% block content %}
+
+<div class="calendar-header">
+    <div class="month-nav" style="position: absolute; left: 0;">
+        <div style="display: flex; gap: 8px;">
+            <a href="/?year={{ year }}&month={{ month }}&tab=batch" class="tab-btn {% if current_tab == 'batch' %}active{% endif %}">ОСНОВНЫЕ ПАРТИИ</a>
+            <a href="/?year={{ year }}&month={{ month }}&tab=sample" class="tab-btn {% if current_tab == 'sample' %}active{% endif %}">ОБРАЗЦЫ</a>
+        </div>
+    </div>
+    
+    <div class="month-nav">
+        <a href="/?year={{ prev_year }}&month={{ prev_month }}&tab={{ current_tab }}" class="btn btn-outline" style="padding: 4px 10px; font-size:14px; font-weight: bold;">←</a>
+        <h2>{{ month_name }} {{ year }}</h2>
+        <a href="/?year={{ next_year }}&month={{ next_month }}&tab={{ current_tab }}" class="btn btn-outline" style="padding: 4px 10px; font-size:14px; font-weight: bold;">→</a>
+    </div>
+    
+    <div class="month-nav" style="position: absolute; right: 0;">
+        <a href="/?year={{ now.year }}&month={{ now.month }}&tab={{ current_tab }}" class="btn btn-outline" style="padding: 4px 12px; font-size: 12px;">Сегодня</a>
+    </div>
+</div>
+
+<div class="calendar">
+    <div class="weekdays">
+        <div class="weekday">Понедельник</div><div class="weekday">Вторник</div><div class="weekday">Среда</div>
+        <div class="weekday">Четверг</div><div class="weekday">Пятница</div><div class="weekday">Суббота</div><div class="weekday">Воскресенье</div>
+    </div>
+
+    <div class="days-grid">
+        {% for day in calendar_data %}
+            <div class="day-cell {{ day.day_bg_class }} {% if day.is_today %}day-today{% endif %} {% if day.is_other_month %}other-month{% endif %}"
+                data-date="{{ day.date_str }}"
+                ondblclick="location.href='/day/{{ day.date_str }}'">
+                
+                <div class="day-header">
+                    <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
+                        <span class="day-number">{{ day.day }}</span>
+                        {% if current_tab == 'batch' and day.start_order_badge_text %}
+                            <span class="order-start-badge" 
+                                  title="Старт заказа: {{ day.start_order_name }} ({{ day.start_order_badge_text }})" 
+                                  onclick="handleOrderClick('{{ day.start_order_id }}', event)" 
+                                  style="cursor: pointer; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 85px;">
+                                {{ day.start_order_badge_text }}
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if current_tab == 'batch' %}
+                    <div class="cross-indicators">
+                        {% for isActive in day.cross_indicators %}
+                            <div class="cross-dot {% if isActive %}active{% endif %}" title="Идет работа в другом потоке"></div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="q-grid-main">
+                    {% for q in day.quarters %}
+                        {% set q_num = loop.index %}
+                        {% if q.is_empty %}
+                            <div class="q-cell empty" 
+                                 data-date="{{ day.date_str }}" 
+                                 data-q="{{ q_num }}"></div>
+                        {% else %}
+                            <div class="q-cell {{ q.css_class }} {% if q.conn_r %}conn-r{% endif %} {% if q.conn_b %}conn-b{% endif %} {% if q.conn_l %}conn-l{% endif %} {% if q.conn_t %}conn-t{% endif %}"
+                                 data-order-id="{{ q.order_id }}"
+                                 data-date="{{ day.date_str }}"
+                                 data-q="{{ q_num }}"
+                                 title="Заказ #{{ q.order_number }}: {{ q.order_name }} ({{ q.quantity }} шт.) — {{ q.stage_type }}"
+                                 onclick="handleOrderClick('{{ q.order_id }}', event)">
+                                {% if q.show_text %}
+                                    <span class="q-text">
+                                        {% if current_tab == 'sample' %}
+                                            #{{ q.order_number }} ({{ q.quantity }} шт.)
+                                        {% else %}
+                                            #{{ q.order_number }} {{ q.stage_type }}
+                                        {% endif %}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-card-title">Загруженность месяца</div>
+        <div class="stat-card-value">{{ load_percent }}%</div>
+        <div class="load-track"><div class="load-bar" style="width: {{ load_percent }}%"></div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-title">Количество изделий</div>
+        <div class="stat-card-value">{{ total_items }} шт.</div>
+    </div>
+    
+    {% if current_tab == 'batch' %}
+    <div class="stat-card">
+        <div class="stat-card-title">Заказы</div>
+        <div class="stat-card-value">{{ active_batches }}</div>
+    </div>
+    {% else %}
+    <div class="stat-card">
+        <div class="stat-card-title">Образцы</div>
+        <div class="stat-card-value">{{ active_samples }}</div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function handleOrderClick(orderId, event) {
+        if (event) event.stopPropagation();
+        openOrderModal(orderId);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.q-cell:not(.empty)').forEach(cell => {
+            cell.addEventListener('mouseenter', () => {
+                const id = cell.dataset.orderId;
+                document.querySelectorAll(`.q-cell[data-order-id="${id}"]`).forEach(c => c.classList.add('hovered'));
+            });
+            cell.addEventListener('mouseleave', () => {
+                const id = cell.dataset.orderId;
+                document.querySelectorAll(`.q-cell[data-order-id="${id}"]`).forEach(c => c.classList.remove('hovered'));
+            });
+        });
+
+        document.querySelectorAll('.day-cell').forEach(dayEl => {
+            dayEl.addEventListener('click', (e) => {
+                if (e.target.closest('.q-cell') || e.target.closest('.order-start-badge') || e.target.closest('.cross-indicators')) return;
+                const occupiedCells = dayEl.querySelectorAll('.q-cell:not(.empty)');
+                if (occupiedCells.length > 0) {
+                    const firstOrderId = occupiedCells[0].dataset.orderId;
+                    if (firstOrderId) handleOrderClick(firstOrderId, e);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

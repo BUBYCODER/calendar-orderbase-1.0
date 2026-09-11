@@ -1,0 +1,1107 @@
+{% extends "base.html" %}
+{% block title %}Создать заказ{% endblock %}
+{% block content %}
+
+<!-- ВЕРХ СТРАНИЦЫ (Навигация) -->
+<div style="margin-bottom: 20px;">
+    <a href="/orders" class="btn btn-outline" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+        ← Назад
+    </a>
+</div>
+
+<div class="form-container">
+    <form method="POST" action="/add_order" id="orderForm" enctype="multipart/form-data" novalidate>
+        <input type="hidden" name="loaded_draft_id" id="loaded_draft_id">
+        
+        <!-- ПАСПОРТ ЗАКАЗА -->
+        <div class="form-block-card">
+            <h3 style="margin-bottom: 15px; font-size: 16px; font-weight: 600;">Паспорт заказа</h3>
+            
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1; min-width: 140px;">
+                    <label>Номер заказа *</label>
+                    <input type="number" name="order_number" id="order_number" value="{{ next_num }}" min="1" required oninput="checkOrderNumber(this.value)">
+                    <div id="order-number-status" style="font-size: 11px; margin-top: 4px; font-weight:600; color:#dc2626;"></div>
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 160px;">
+                    <label>Клиент / Бренд *</label>
+                    <input type="text" name="client_name" id="client_name" list="clients-datalist" placeholder="Выберите или введите..." required oninput="clearFieldError(this)">
+                    <datalist id="clients-datalist">
+                        {% for c in clients %}
+                        <option value="{{ c.name }}">
+                        {% endfor %}
+                    </datalist>
+                    <div class="field-error-text" style="display:none; color:#dc2626; font-size:12px; margin-top:4px;">Это поле обязательное</div>
+                </div>
+                <div class="form-group" id="group-name" style="flex: 2; min-width: 240px;">
+                    <label>Название заказа *</label>
+                    <input type="text" name="name" id="order-name" placeholder="Например: Худи Оверсайз черные для бренда X" autofocus oninput="clearFieldError(this)">
+                    <div class="field-error-text" style="display:none; color:#dc2626; font-size:12px; margin-top:4px;">Это поле обязательное</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1; min-width: 150px;">
+                    <label>Дата оформления *</label>
+                    <input type="date" name="creation_date" id="creation_date" value="{{ today_str }}" required>
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 160px;">
+                    <label>Общая сумма заказа (₽)</label>
+                    <input type="number" name="amount" id="order_amount" min="0" step="100" placeholder="0">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 140px;">
+                    <label>Тип заказа</label>
+                    <select name="order_type" id="order_type" onchange="toggleOrderTypeUI(); loadOccupiedSlots();">
+                        <option value="batch">Основная партия</option>
+                        <option value="sample">Образец</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 180px;">
+                    <label>Контакты</label>
+                    <input type="text" name="contact" id="contact_input" placeholder="+7 999 000-00-00 или @telegram">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Комментарий к заказу</label>
+                <input type="text" name="comment" id="order-comment" placeholder="Дополнительные пожелания, заметки для цеха..." autocomplete="off">
+            </div>
+        </div>
+
+        <!-- СОСТАВ ЗАКАЗА (Изделия и размеры) -->
+        <div class="form-block-card" id="block-positions">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 600;">Состав заказа</h3>
+            </div>
+
+            <div id="positions-container"></div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; flex-wrap: wrap; gap: 10px; border-top: 1px dashed #cbd5e1; padding-top: 12px;">
+                <button type="button" class="btn btn-outline" onclick="addPositionCard()">+ Добавить еще изделие в этот заказ</button>
+                <div class="order-total-bar">ОБЩИЙ ТИРАЖ ЗАКАЗА: <span id="total-order-qty">0</span> шт.</div>
+            </div>
+            <input type="hidden" name="quantity" id="hidden_total_quantity" value="0">
+        </div>
+
+        <!-- ПРОИЗВОДСТВЕННЫЙ ГРАФИК -->
+        <div class="form-block-card">
+            <h3 style="margin-bottom: 15px; font-size: 16px; font-weight: 600;">Производственный график</h3>
+
+            <div class="form-group" id="group-start-date" style="margin-bottom: 20px;">
+                <label>Дата начала производства: *</label>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" id="start-picker-btn" onclick="openStartPicker()">Выбрать дату и часть дня</button>
+                    <span id="order-start-display" class="start-date-display">(не выбрано)</span>
+                </div>
+                <input type="hidden" name="order_start_date" id="global-start-date">
+                <input type="hidden" name="order_start_q" id="global-start-q">
+                <div class="field-error-text" style="display:none; color:#dc2626; font-size:12px; margin-top:4px;">Выберите дату начала производства</div>
+            </div>
+
+            <div id="batch-ui">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <label style="font-weight: 700; margin: 0;">Этапы производства</label>
+                </div>
+                <div id="stages-empty-hint" style="color: #6b7280; font-size: 13px; font-style: italic; margin-bottom: 10px;">
+                    (Изначально список пуст! Нажмите «+ Добавить этап», чтобы добавить нужный участок цеха)
+                </div>
+
+                <div id="group-batch-stages">
+                    <ul id="sortable-stages" style="list-style: none; padding: 0;"></ul>
+                    <div class="field-error-text" id="batch-stages-error" style="display:none; color:#dc2626; font-size:12px; margin-top:4px;">Добавьте хотя бы один этап производства</div>
+                </div>
+
+                <div style="position: relative; display: inline-block; margin-top: 15px;">
+                    <button type="button" class="btn btn-outline" onclick="toggleStageMenu(event)" style="font-weight: 600;">+ Добавить этап ▾</button>
+                    <div id="stageDropdownMenu" class="stage-dropdown-menu">
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('Раскрой')">Раскрой</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('Пошив')">Пошив</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('DTF')">DTF</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('Шелкография')">Шелкография</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('Вышивка')">Вышивка</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('ВТО и упаковка')">ВТО и упаковка</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('Отгрузка')">Отгрузка</div>
+                        <div class="stage-dropdown-divider"></div>
+                        <div class="stage-dropdown-item" onclick="promptCustomStage()">+ Свой этап...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="sample-ui" style="display:none; margin-top:15px;">
+                <div class="form-group sample-duration-box" id="group-sample-duration">
+                    <label>Общая длительность пошива образца *</label>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <select id="sample-duration" style="width: auto; max-width: 200px;" onchange="calculateSampleSchedule();">
+                            <option value="">Выберите...</option>
+                            <option value="0.25">0.25 дня</option>
+                            <option value="0.5">0.5 дня</option>
+                            <option value="1">1 день</option>
+                            <option value="2">2 дня</option>
+                            <option value="3">3 дня</option>
+                            <option value="4">4 дня</option>
+                            <option value="5">5 дней</option>
+                            <option value="6">6 дней</option>
+                            <option value="7">7 дней</option>
+                        </select>
+                        <span id="sample-dates-display" style="font-size: 13px; font-weight:600; color:#2563eb;"></span>
+                    </div>
+                    <input type="hidden" name="sample_end_date" id="sample-end-date">
+                    <input type="hidden" name="sample_end_q" id="sample-end-q">
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-actions" style="margin-top:25px; display:flex; gap:12px;">
+            <button type="button" class="btn btn-primary" style="padding: 9px 24px; font-size: 15px;" onclick="openOrderSummaryModal()">Создать заказ</button>
+            <button type="button" class="btn btn-outline" id="btn-save-draft" onclick="saveCurrentAsDraft()">В черновики</button>
+            <a href="/orders" class="btn btn-outline" style="padding: 9px 20px;">Отмена</a>
+        </div>
+    </form>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО СВОДКИ / ПРЕДПРОСМОТРА -->
+<div id="summaryModal" class="modal-overlay" onclick="if(event.target===this) closeSummaryModal()">
+    <div class="modal-content" style="max-width: 720px;">
+        <span class="modal-close" onclick="closeSummaryModal()">&times;</span>
+        <h3 style="margin-bottom: 5px; color: #2563eb;">Подтверждение создания заказа</h3>
+        <p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">Проверьте введённые данные перед окончательным сохранением.</p>
+        
+        <div id="summaryContent" style="font-size: 14px; line-height: 1.5; max-height: 60vh; overflow-y: auto; padding-right: 5px;"></div>
+        
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+            <button type="button" class="btn btn-outline" onclick="closeSummaryModal()">Вернуться к редактированию</button>
+            <button type="button" class="btn btn-primary" style="padding: 8px 22px;" onclick="submitOrderFormFinal()">Подтвердить и создать</button>
+        </div>
+    </div>
+</div>
+
+<!-- КАЛЕНДАРНЫЙ ПИКЕР -->
+<div id="calendarModal" class="modal-overlay" onclick="if(event.target===this) closePicker()">
+    <div class="modal-content" style="max-width: 600px;">
+        <span class="modal-close" onclick="closePicker()">&times;</span>
+        <h3 id="pickerTitle">Выберите дату</h3>
+        <div style="display:flex; justify-content:space-between; margin:15px 0;">
+            <button type="button" class="btn btn-outline" onclick="changeMonth(-1)">←</button>
+            <strong id="pickerMonthYear"></strong>
+            <button type="button" class="btn btn-outline" onclick="changeMonth(1)">→</button>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-weight:bold; margin-bottom:5px;">
+            <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+        </div>
+        <div id="pickerGrid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;"></div>
+        <div style="margin-top:15px; text-align:right;">
+            <button type="button" class="btn btn-primary" onclick="applyPicker()">Применить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const PRODUCTS_LIST = [
+        'Худи', 'Зип-худи', 'Свитшот', 'Полузамок', 'Олимпийка',
+        'Бомбер', 'Брюки', 'Футболка', 'Лонгслив', 'Майка', 'Шорты', 'Свой вариант'
+    ];
+
+    const PATTERNS_MAP = {
+        'Худи': ['Oversize', 'Boxy-fit', 'Regular'],
+        'Зип-худи': ['Oversize', 'Boxy-fit', 'Regular'],
+        'Свитшот': ['Oversize', 'Boxy-fit', 'Regular'],
+        'Полузамок': ['Oversize', 'Boxy-fit', 'Regular'],
+        'Олимпийка': ['Oversize', 'Boxy-fit', 'Regular'],
+        'Бомбер': ['Oversize', 'Boxy-fit', 'Regular'],
+        'Футболка': ['Oversize', 'Boxy-fit', 'Regular', 'Slim'],
+        'Лонгслив': ['Oversize', 'Boxy-fit', 'Regular', 'Slim'],
+        'Майка': ['Oversize', 'Boxy-fit', 'Regular', 'Slim'],
+        'Брюки': ['Джоггеры', 'Прямые', 'Oversize'],
+        'Шорты': ['Oversize']
+    };
+
+    const FABRICS_LIST = ['3-х нитка Петля', '3-х нитка Начес', '2х нитка Петля', 'Кулирная гладь', 'Свой вариант'];
+
+    const DENSITIES_MAP = {
+        '3-х нитка Петля': ['340г', '420г', '500г'],
+        '3-х нитка Начес': ['340г'],
+        '2х нитка Петля': ['240г'],
+        'Кулирная гладь': ['190г', '220г', '240г', '300г']
+    };
+
+    const COLORS_LIST = ['Черный', 'Белый', 'Молочный', 'Темно-синий', 'Василек', 'Бордовый', 'Свой вариант'];
+
+    let positionCounter = 0;
+
+    function addPositionCard() {
+        positionCounter++;
+        const pId = positionCounter;
+        const container = document.getElementById('positions-container');
+
+        const card = document.createElement('div');
+        card.className = 'position-card';
+        card.id = `pos-card-${pId}`;
+        card.dataset.pid = pId;
+
+        card.innerHTML = `
+            <input type="hidden" name="pos_index[]" value="${pId}">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+                <span class="pos-header-title">Позиция #${pId}</span>
+                <button type="button" class="btn btn-danger pos-delete-btn" style="padding:3px 8px; font-size:12px;" onclick="removePositionCard(${pId})">Удалить позицию</button>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:12px;">
+                <div>
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Вид изделия *</label>
+                    <select name="product_${pId}" id="product_${pId}" onchange="onProductSelectChange(${pId}, this.value)" style="width:100%; padding:6px; font-size:13px;" required>
+                        <option value="">Выберите изделие...</option>
+                        ${PRODUCTS_LIST.map(p => `<option value="${p}">${p}</option>`).join('')}
+                    </select>
+                    <input type="text" name="custom_product_${pId}" id="custom_product_${pId}" placeholder="Свое изделие..." style="display:none; margin-top:4px; width:100%; padding:5px; font-size:12px;">
+                </div>
+
+                <div>
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Лекала / Фит *</label>
+                    <select name="pattern_${pId}" id="pattern_${pId}" onchange="onPatternSelectChange(${pId}, this.value)" style="width:100%; padding:6px; font-size:13px;">
+                        <option value="">Сначала выберите изделие</option>
+                    </select>
+                    <input type="text" name="custom_pattern_${pId}" id="custom_pattern_${pId}" placeholder="Свое лекало..." style="display:none; margin-top:4px; width:100%; padding:5px; font-size:12px;">
+                </div>
+
+                <div>
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Полотно *</label>
+                    <select name="fabric_${pId}" id="fabric_${pId}" onchange="onFabricSelectChange(${pId}, this.value)" style="width:100%; padding:6px; font-size:13px;">
+                        <option value="">Выберите полотно...</option>
+                        ${FABRICS_LIST.map(f => `<option value="${f}">${f}</option>`).join('')}
+                    </select>
+                    <input type="text" name="custom_fabric_${pId}" id="custom_fabric_${pId}" placeholder="Свое полотно..." style="display:none; margin-top:4px; width:100%; padding:5px; font-size:12px;">
+                </div>
+
+                <div>
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Плотность</label>
+                    <select name="density_${pId}" id="density_${pId}" onchange="onDensitySelectChange(${pId}, this.value)" style="width:100%; padding:6px; font-size:13px;">
+                        <option value="">Сначала полотно</option>
+                    </select>
+                    <input type="text" name="custom_density_${pId}" id="custom_density_${pId}" placeholder="Плотность..." style="display:none; margin-top:4px; width:100%; padding:5px; font-size:12px;">
+                </div>
+
+                <div>
+                    <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Цвет полотна</label>
+                    <select name="color_${pId}" id="color_${pId}" onchange="onColorSelectChange(${pId}, this.value)" style="width:100%; padding:6px; font-size:13px;">
+                        ${COLORS_LIST.map(c => `<option value="${c}">${c}</option>`).join('')}
+                    </select>
+                    <input type="text" name="custom_color_${pId}" id="custom_color_${pId}" placeholder="Свой цвет..." style="display:none; margin-top:4px; width:100%; padding:5px; font-size:12px;">
+                </div>
+            </div>
+
+            <!-- Размерная сетка -->
+            <div style="margin-bottom:12px;">
+                <label class="field-title" style="display:block; margin-bottom:4px;">Размерная сетка:</label>
+                <div class="size-grid-wrapper">
+                    <table class="size-table">
+                        <thead>
+                            <tr>
+                                <th>3XS</th><th>2XS</th><th>XS</th><th>S</th><th>M</th>
+                                <th>L</th><th>XL</th><th>2XL</th><th>3XL</th><th>One Size</th>
+                                <th class="pos-total-cell">ИТОГО ПОЗ.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><input type="number" name="size_3xs_${pId}" min="0" value="0" class="size-input" oninput="recalcPositionTotal(${pId})"></td>
+                                <td><input type="number" name="size_2xs_${pId}" min="0" value="0" class="size-input" oninput="recalcPositionTotal(${pId})"></td>
+                                <td><input type="number" name="size_xs_${pId}" min="0" value="0" class="size-input" oninput="recalcPositionTotal(${pId})"></td>
+                                <td><input type="number" name="size_s_${pId}" min="0" value="0" class="size-input" oninput="recalcPositionTotal(${pId})"></td>
+                                <td><input type="number" name="size_m_${pId}" min="0" value="0" class="size-input" oninput="recalcPositionTotal(${pId})"></td>
+                                <td><input type="number" name="size_l_${pId}" min="0" value="0" class="size-input" oninput="recalcPositionTotal(${pId})"></td>
+                                <td><input type="number" name="size_xl_${pId}" min="0" value="0" class="size-input" oninput="recalcPositionTotal(${pId})"></td>
+                                <td><input type="number" name="size_2xl_${pId}" min="0" value="0" class="size-input" oninput="recalcPositionTotal(${pId})"></td>
+                                <td><input type="number" name="size_3xl_${pId}" min="0" value="0" class="size-input" oninput="recalcPositionTotal(${pId})"></td>
+                                <td><input type="number" name="size_onesize_${pId}" min="0" value="0" class="size-input" oninput="recalcPositionTotal(${pId})"></td>
+                                <td class="pos-total-cell" style="text-align:center;" id="pos-total-display-${pId}">0 шт.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Нанесения -->
+            <div style="margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <label class="field-title" style="margin:0;">Нанесения на изделие:</label>
+                    <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:11px;" onclick="addEmbellishmentRow(${pId})">+ Добавить нанесение</button>
+                </div>
+                <div id="embellishments-container-${pId}" style="display:flex; flex-direction:column; gap:6px;"></div>
+            </div>
+        `;
+
+        container.appendChild(card);
+        updateDeleteButtonsVisibility();
+        recalcGlobalTotal();
+    }
+
+    function removePositionCard(pId) {
+        const card = document.getElementById(`pos-card-${pId}`);
+        if (card) card.remove();
+        updateDeleteButtonsVisibility();
+        recalcGlobalTotal();
+    }
+
+    function updateDeleteButtonsVisibility() {
+        const cards = document.querySelectorAll('.position-card');
+        cards.forEach(c => {
+            const btn = c.querySelector('.pos-delete-btn');
+            if (btn) btn.style.display = (cards.length > 1) ? 'inline-block' : 'none';
+        });
+    }
+
+    function onProductSelectChange(pId, val) {
+        const customInput = document.getElementById(`custom_product_${pId}`);
+        const patternSelect = document.getElementById(`pattern_${pId}`);
+        const customPatternInput = document.getElementById(`custom_pattern_${pId}`);
+
+        if (val === 'Свой вариант') {
+            customInput.style.display = 'block';
+            patternSelect.innerHTML = '<option value="Свой вариант">Свой вариант</option>';
+            customPatternInput.style.display = 'block';
+        } else {
+            customInput.style.display = 'none';
+            customPatternInput.style.display = 'none';
+            const patterns = PATTERNS_MAP[val] || ['Oversize', 'Boxy-fit', 'Regular'];
+            let html = '<option value="">Выберите крой...</option>';
+            patterns.forEach(p => { html += `<option value="${p}">${p}</option>`; });
+            html += '<option value="Свой вариант">+ Свой вариант...</option>';
+            patternSelect.innerHTML = html;
+        }
+    }
+
+    function onPatternSelectChange(pId, val) {
+        const customInput = document.getElementById(`custom_pattern_${pId}`);
+        customInput.style.display = (val === 'Свой вариант') ? 'block' : 'none';
+    }
+
+    function onFabricSelectChange(pId, val) {
+        const customInput = document.getElementById(`custom_fabric_${pId}`);
+        const densitySelect = document.getElementById(`density_${pId}`);
+        const customDensityInput = document.getElementById(`custom_density_${pId}`);
+
+        if (val === 'Свой вариант') {
+            customInput.style.display = 'block';
+            densitySelect.innerHTML = '<option value="Свой вариант">Свой вариант</option>';
+            customDensityInput.style.display = 'block';
+        } else {
+            customInput.style.display = 'none';
+            customDensityInput.style.display = 'none';
+            const densities = DENSITIES_MAP[val] || [];
+            let html = '<option value="">Выберите плотность...</option>';
+            densities.forEach(d => { html += `<option value="${d}">${d}</option>`; });
+            html += '<option value="Свой вариант">+ Свой вариант...</option>';
+            densitySelect.innerHTML = html;
+        }
+    }
+
+    function onDensitySelectChange(pId, val) {
+        const customInput = document.getElementById(`custom_density_${pId}`);
+        customInput.style.display = (val === 'Свой вариант') ? 'block' : 'none';
+    }
+
+    function onColorSelectChange(pId, val) {
+        const customInput = document.getElementById(`custom_color_${pId}`);
+        customInput.style.display = (val === 'Свой вариант') ? 'block' : 'none';
+    }
+
+    function recalcPositionTotal(pId) {
+        const card = document.getElementById(`pos-card-${pId}`);
+        if (!card) return 0;
+        let sum = 0;
+        card.querySelectorAll('.size-input').forEach(inp => {
+            sum += parseInt(inp.value || 0, 10) || 0;
+        });
+        document.getElementById(`pos-total-display-${pId}`).textContent = `${sum} шт.`;
+        
+        card.querySelectorAll('.emb-qty-input').forEach(eqInp => {
+            if (!eqInp.dataset.manualEdited) {
+                eqInp.value = sum;
+            }
+        });
+
+        recalcGlobalTotal();
+        return sum;
+    }
+
+    function recalcGlobalTotal() {
+        let globalSum = 0;
+        document.querySelectorAll('.position-card').forEach(card => {
+            card.querySelectorAll('.size-input').forEach(inp => {
+                globalSum += parseInt(inp.value || 0, 10) || 0;
+            });
+        });
+        document.getElementById('total-order-qty').textContent = globalSum;
+        document.getElementById('hidden_total_quantity').value = globalSum;
+    }
+
+    function addEmbellishmentRow(pId) {
+        const container = document.getElementById(`embellishments-container-${pId}`);
+        const curPosTotal = parseInt(document.getElementById(`pos-total-display-${pId}`).textContent, 10) || 0;
+
+        const row = document.createElement('div');
+        row.className = 'emb-row';
+        row.style.cssText = 'display:flex; gap:8px; align-items:center; background:#f8fafc; padding:6px 10px; border-radius:4px; border:1px solid #e2e8f0;';
+        row.innerHTML = `
+            <select name="emb_type_${pId}[]" style="padding:4px; font-size:12px; flex:2;">
+                <option value="DTF-печать">DTF-печать</option>
+                <option value="Шелкография">Шелкография</option>
+                <option value="Машинная вышивка">Машинная вышивка</option>
+                <option value="DTF">DTF</option>
+            </select>
+            <select name="emb_format_${pId}[]" style="padding:4px; font-size:12px; flex:1;">
+                <option value="A4">A4</option>
+                <option value="A7">A7</option>
+                <option value="A6">A6</option>
+                <option value="A5">A5</option>
+                <option value="A3">A3</option>
+                <option value="A2">A2</option>
+            </select>
+            <input type="number" name="emb_quantity_${pId}[]" class="emb-qty-input" value="${curPosTotal}" min="1" placeholder="Кол-во шт." style="padding:4px; font-size:12px; width:90px;" oninput="this.dataset.manualEdited='true'">
+            <button type="button" class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="this.closest('.emb-row').remove()">✕</button>
+        `;
+        container.appendChild(row);
+    }
+
+    async function checkOrderNumber(val) {
+        const statusEl = document.getElementById('order-number-status');
+        if (!val || val <= 0) { statusEl.textContent = ''; return; }
+        const res = await fetch(`/api/check_order_number?number=${val}`);
+        const data = await res.json();
+        if (data.taken) {
+            statusEl.textContent = 'Номер уже занят!';
+        } else {
+            statusEl.textContent = '';
+        }
+    }
+
+    function clearFieldError(input) {
+        input.classList.remove('field-input-error');
+        const group = input.closest('.form-group');
+        if (group) {
+            const err = group.querySelector('.field-error-text');
+            if (err) err.style.display = 'none';
+        }
+    }
+
+    function toggleStageMenu(e) {
+        e.stopPropagation();
+        const menu = document.getElementById('stageDropdownMenu');
+        menu.classList.toggle('active');
+    }
+
+    document.addEventListener('click', () => {
+        const menu = document.getElementById('stageDropdownMenu');
+        if (menu) menu.classList.remove('active');
+    });
+
+    function addStageFromMenu(stageName) {
+        document.getElementById('stageDropdownMenu').classList.remove('active');
+        addStageRow(stageName);
+    }
+
+    function promptCustomStage() {
+        document.getElementById('stageDropdownMenu').classList.remove('active');
+        const name = prompt('Введите название своего этапа:');
+        if (name && name.trim()) {
+            addStageRow(name.trim());
+        }
+    }
+
+    function addStageRow(stageName) {
+        const list = document.getElementById('sortable-stages');
+        document.getElementById('stages-empty-hint').style.display = 'none';
+
+        const li = document.createElement('li');
+        li.className = 'stage-item-row';
+        li.dataset.explicit = 'false';
+        li.draggable = true;
+        li.innerHTML = `
+            <span style="cursor:grab; font-size:18px; color:#9ca3af; padding-right:8px;" title="Перетащите для изменения порядка">⠇⠇</span>
+            <input type="text" name="stage_type[]" value="${stageName}" readonly style="font-weight:700; flex:1; min-width:130px; border:none; background:transparent;">
+            <select class="duration-select" onchange="calculateSchedule();" style="width:auto; padding:5px; font-size:13px;">
+                <option value="0.25">0.25 дня</option>
+                <option value="0.5">0.5 дня</option>
+                <option value="0.75">0.75 дня</option>
+                <option value="1" selected>1 день</option>
+                <option value="2">2 дня</option>
+                <option value="3">3 дня</option>
+                <option value="4">4 дня</option>
+                <option value="5">5 дней</option>
+                <option value="6">6 дней</option>
+                <option value="7">7 дней</option>
+                <option value="custom">Вручную (дни)</option>
+            </select>
+            <input type="number" class="custom-duration" step="0.25" min="0.25" style="display:none; width:70px; padding:5px;" oninput="calculateSchedule();" placeholder="Дней">
+            <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:12px;" onclick="openIntervalPicker(this)">Интервал</button>
+            <span class="stage-dates-display" style="font-size:13px; font-weight:700; margin-left:10px; color:#2563eb;"></span>
+            
+            <input type="hidden" name="start_date[]" class="start-date-input">
+            <input type="hidden" name="start_q[]" class="start-q-input">
+            <input type="hidden" name="end_date[]" class="end-date-input">
+            <input type="hidden" name="end_q[]" class="end-q-input">
+            <button type="button" class="btn btn-danger" style="padding:3px 7px; font-size:12px; margin-left:auto;" onclick="this.closest('li').remove(); calculateSchedule(); checkStagesEmpty();">✕</button>
+        `;
+        list.appendChild(li);
+        calculateSchedule();
+        clearBatchStageError();
+    }
+
+    function checkStagesEmpty() {
+        const list = document.getElementById('sortable-stages');
+        if (!list.children.length) {
+            document.getElementById('stages-empty-hint').style.display = 'block';
+        }
+    }
+
+    const sortList = document.getElementById('sortable-stages');
+    let draggedStage = null;
+    sortList.addEventListener('dragstart', e => {
+        draggedStage = e.target.closest('li');
+        if (draggedStage) draggedStage.classList.add('dragging');
+    });
+    sortList.addEventListener('dragend', e => {
+        if (draggedStage) {
+            draggedStage.classList.remove('dragging');
+            draggedStage = null;
+            calculateSchedule();
+        }
+    });
+    sortList.addEventListener('dragover', e => {
+        e.preventDefault();
+        const after = getDragAfterElement(sortList, e.clientY);
+        if (e.target.closest('li') !== draggedStage && draggedStage) {
+            if (!after) sortList.appendChild(draggedStage);
+            else sortList.insertBefore(draggedStage, after);
+        }
+    });
+    function getDragAfterElement(container, y) {
+        return [...container.querySelectorAll('li:not(.dragging)')].reduce((closest, child) => {
+            const box = child.getBoundingClientRect(), offset = y - box.top - box.height / 2;
+            return (offset < 0 && offset > closest.offset) ? { offset: offset, element: child } : closest;
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function dateToAbs(dateStr, q) { if(!dateStr) return 0; const p = dateStr.split('-'); return Math.floor(new Date(Date.UTC(p[0], p[1]-1, p[2])).getTime()/86400000) * 4 + parseInt(q) - 1; }
+    function absToDateAndQ(absQ) { const dStr = new Date(Math.floor(absQ/4) * 86400000).toISOString().split('T')[0]; return { date: dStr, q: (absQ % 4) + 1 }; }
+    function formatD(d) { if(!d) return ''; const p = d.split('-'); return `${p[2]}.${p[1]}.${p[0]}`; }
+
+    let dbOccupiedMap = {};
+    let localOccupiedMapForPicker = {};
+
+    async function loadOccupiedSlots() {
+        const type = document.getElementById('order_type').value;
+        const res = await fetch(`/api/occupied?order_type=${type}`);
+        const slots = await res.json();
+        dbOccupiedMap = {};
+        slots.forEach(s => {
+            let start = dateToAbs(s.start_date, s.start_q);
+            let end = dateToAbs(s.end_date, s.end_q);
+            for (let q = start; q <= end; q++) dbOccupiedMap[q] = true;
+        });
+        if (type === 'sample') calculateSampleSchedule();
+        else calculateSchedule();
+    }
+
+    function calculateSchedule() {
+        let startD = document.getElementById('global-start-date').value;
+        let startQ = document.getElementById('global-start-q').value;
+
+        document.querySelectorAll('#sortable-stages li').forEach(row => {
+            const sel = row.querySelector('.duration-select').value;
+            row.querySelector('.custom-duration').style.display = (sel === 'custom') ? 'inline-block' : 'none';
+        });
+
+        if (!startD) return;
+
+        let currentAbsQ = dateToAbs(startD, startQ);
+        let localOccupiedMap = {...dbOccupiedMap};
+
+        document.querySelectorAll('#sortable-stages li').forEach(row => {
+            const sel = row.querySelector('.duration-select').value;
+            let duration = (sel === 'custom') ? parseFloat(row.querySelector('.custom-duration').value || 0) : parseFloat(sel || 0);
+            
+            if (row.dataset.explicit === 'true') {
+                let stA = dateToAbs(row.querySelector('.start-date-input').value, row.querySelector('.start-q-input').value);
+                let enA = dateToAbs(row.querySelector('.end-date-input').value, row.querySelector('.end-q-input').value);
+                for(let i=stA; i<=enA; i++) localOccupiedMap[i] = true;
+                currentAbsQ = Math.max(currentAbsQ, enA + 1);
+            } else if (duration > 0) {
+                let quartersNeeded = Math.round(duration * 4);
+                let stageStartQ = null;
+                let stageEndQ = null;
+                
+                while (quartersNeeded > 0) {
+                    if (!localOccupiedMap[currentAbsQ]) {
+                        if (stageStartQ === null) stageStartQ = currentAbsQ;
+                        stageEndQ = currentAbsQ;
+                        quartersNeeded--;
+                        localOccupiedMap[currentAbsQ] = true;
+                    }
+                    currentAbsQ++;
+                }
+                
+                let startObj = absToDateAndQ(stageStartQ);
+                let endObj = absToDateAndQ(stageEndQ);
+                
+                row.querySelector('.start-date-input').value = startObj.date;
+                row.querySelector('.start-q-input').value = startObj.q;
+                row.querySelector('.end-date-input').value = endObj.date;
+                row.querySelector('.end-q-input').value = endObj.q;
+                row.querySelector('.stage-dates-display').textContent = `${formatD(startObj.date)} (ч.${startObj.q}) — ${formatD(endObj.date)} (ч.${endObj.q})`;
+            }
+        });
+        localOccupiedMapForPicker = localOccupiedMap;
+    }
+
+    function calculateSampleSchedule() {
+        let startD = document.getElementById('global-start-date').value;
+        let startQ = document.getElementById('global-start-q').value;
+        let sel = document.getElementById('sample-duration').value;
+        if (!startD) return;
+
+        let duration = parseFloat(sel || 0);
+        if (duration > 0) {
+            let currentAbsQ = dateToAbs(startD, startQ);
+            let quartersNeeded = Math.round(duration * 4);
+            let stageEndQ = currentAbsQ;
+            let localOccupiedMap = {...dbOccupiedMap};
+            
+            while (quartersNeeded > 0) {
+                if (!localOccupiedMap[currentAbsQ]) {
+                    stageEndQ = currentAbsQ;
+                    quartersNeeded--;
+                    localOccupiedMap[currentAbsQ] = true;
+                }
+                currentAbsQ++;
+            }
+            
+            let endObj = absToDateAndQ(stageEndQ);
+            document.getElementById('sample-end-date').value = endObj.date;
+            document.getElementById('sample-end-q').value = endObj.q;
+            document.getElementById('sample-dates-display').textContent = `${formatD(startD)} (ч.${startQ}) — ${formatD(endObj.date)} (ч.${endObj.q})`;
+        }
+    }
+
+    function toggleOrderTypeUI() {
+        const type = document.getElementById('order_type').value;
+        if (type === 'sample') {
+            document.getElementById('batch-ui').style.display = 'none';
+            document.getElementById('sample-ui').style.display = 'block';
+            calculateSampleSchedule();
+        } else {
+            document.getElementById('batch-ui').style.display = 'block';
+            document.getElementById('sample-ui').style.display = 'none';
+            calculateSchedule();
+        }
+    }
+
+    function clearStartDateError() {
+        const btn = document.getElementById('start-picker-btn');
+        if (btn) btn.classList.remove('field-input-error');
+        const group = document.getElementById('group-start-date');
+        if (group) {
+            const err = group.querySelector('.field-error-text');
+            if (err) err.style.display = 'none';
+        }
+    }
+
+    function clearBatchStageError() {
+        const err = document.getElementById('batch-stages-error');
+        if (err) err.style.display = 'none';
+    }
+
+    let pickerMode = 'start', pickerRow = null, currentMonth = new Date().getMonth(), currentYear = new Date().getFullYear(), selection = []; 
+    function openStartPicker() {
+        pickerMode = 'start'; selection = [];
+        const val = document.getElementById('global-start-date').value;
+        if (val) { currentYear = parseInt(val.split('-')[0]); currentMonth = parseInt(val.split('-')[1]) - 1; }
+        else { currentMonth = new Date().getMonth(); currentYear = new Date().getFullYear(); }
+        document.getElementById('pickerTitle').textContent = 'Начало производства'; 
+        document.getElementById('calendarModal').classList.add('active'); 
+        renderPicker();
+    }
+    function openIntervalPicker(btn) {
+        pickerMode = 'interval'; pickerRow = btn.closest('li'); selection = [];
+        const val = pickerRow.querySelector('.start-date-input').value;
+        if (val) { currentYear = parseInt(val.split('-')[0]); currentMonth = parseInt(val.split('-')[1]) - 1; }
+        else { currentMonth = new Date().getMonth(); currentYear = new Date().getFullYear(); }
+        document.getElementById('pickerTitle').textContent = 'Интервал этапа';
+        document.getElementById('calendarModal').classList.add('active'); 
+        renderPicker();
+    }
+    function closePicker() { document.getElementById('calendarModal').classList.remove('active'); }
+    function changeMonth(delta) { currentMonth += delta; if (currentMonth < 0) { currentMonth = 11; currentYear--; } if (currentMonth > 11) { currentMonth = 0; currentYear++; } renderPicker(); }
+
+    function renderPicker() {
+        document.getElementById('pickerMonthYear').textContent = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'][currentMonth] + ' ' + currentYear;
+        const container = document.getElementById('pickerGrid'), firstDay = new Date(currentYear, currentMonth, 1).getDay(), daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        let html = ''; for (let i = 0; i < ((firstDay === 0) ? 6 : firstDay - 1); i++) html += '<div></div>';
+        
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            let qHtml = '';
+            for (let q = 1; q <= 4; q++) {
+                const cAbs = dateToAbs(dateStr, q);
+                let isOcc = (pickerMode === 'start') ? dbOccupiedMap[cAbs] : localOccupiedMapForPicker[cAbs];
+                let isSelected = (selection.length===1) ? (cAbs===dateToAbs(selection[0].date, selection[0].q)) : (selection.length===2 && cAbs>=Math.min(dateToAbs(selection[0].date, selection[0].q), dateToAbs(selection[1].date, selection[1].q)) && cAbs<=Math.max(dateToAbs(selection[0].date, selection[0].q), dateToAbs(selection[1].date, selection[1].q)));
+                qHtml += `<div class="q-block ${isOcc?'occupied':''} ${isSelected?'selected':''}" onclick="onQClick('${dateStr}', ${q}, ${isOcc})"></div>`;
+            }
+            html += `<div class="day-cell-picker"><div style="font-size:12px; margin-bottom:2px; text-align:center;">${d}</div><div class="q-grid">${qHtml}</div></div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function onQClick(dateStr, q, isOcc) {
+        if (isOcc) return; 
+        if (pickerMode === 'start') selection = [{date: dateStr, q: q}];
+        else {
+            if (selection.length === 0 || selection.length === 2) selection = [{date: dateStr, q: q}];
+            else {
+                const s0Abs = dateToAbs(selection[0].date, selection[0].q), s1Abs = dateToAbs(dateStr, q);
+                for(let a = Math.min(s0Abs, s1Abs); a <= Math.max(s0Abs, s1Abs); a++) {
+                    if (localOccupiedMapForPicker[a]) return alert("Пересечение с занятым временем!");
+                }
+                selection = (s1Abs < s0Abs) ? [{date: dateStr, q: q}, selection[0]] : [selection[0], {date: dateStr, q: q}];
+            }
+        }
+        renderPicker();
+    }
+
+    function applyPicker() {
+        if (selection.length === 0) return alert('Выберите время');
+        if (pickerMode === 'start') {
+            document.getElementById('global-start-date').value = selection[0].date; 
+            document.getElementById('global-start-q').value = selection[0].q;
+            document.getElementById('order-start-display').textContent = `${formatD(selection[0].date)}, ${selection[0].q}-я часть дня`; 
+            clearStartDateError();
+
+            if (document.getElementById('order_type').value === 'sample') calculateSampleSchedule();
+            else calculateSchedule();
+        } else {
+            if (selection.length !== 2) selection.push(selection[0]);
+            const row = pickerRow, st = selection[0], en = selection[1];
+            row.dataset.explicit = 'true'; 
+            row.querySelector('.duration-select').value = ''; 
+            row.querySelector('.custom-duration').style.display = 'none';
+            row.querySelector('.start-date-input').value = st.date; 
+            row.querySelector('.start-q-input').value = st.q;
+            row.querySelector('.end-date-input').value = en.date; 
+            row.querySelector('.end-q-input').value = en.q;
+            row.querySelector('.stage-dates-display').textContent = `${formatD(st.date)} (ч.${st.q}) — ${formatD(en.date)} (ч.${en.q})`; 
+            calculateSchedule();
+        }
+        closePicker();
+    }
+
+    function openOrderSummaryModal() {
+        let isValid = true;
+        let firstInvalid = null;
+
+        const nameInput = document.getElementById('order-name');
+        if (!nameInput.value.trim()) {
+            nameInput.classList.add('field-input-error');
+            const group = document.getElementById('group-name');
+            if (group) group.querySelector('.field-error-text').style.display = 'block';
+            isValid = false;
+            if (!firstInvalid) firstInvalid = nameInput;
+        }
+
+        const clientInput = document.getElementById('client_name');
+        if (!clientInput.value.trim()) {
+            clientInput.classList.add('field-input-error');
+            isValid = false;
+            if (!firstInvalid) firstInvalid = clientInput;
+        }
+
+        const startD = document.getElementById('global-start-date').value;
+        const startQ = document.getElementById('global-start-q').value;
+        if (!startD || !startQ) {
+            const btn = document.getElementById('start-picker-btn');
+            btn.classList.add('field-input-error');
+            const group = document.getElementById('group-start-date');
+            if (group) group.querySelector('.field-error-text').style.display = 'block';
+            isValid = false;
+            if (!firstInvalid) firstInvalid = btn;
+        }
+
+        const type = document.getElementById('order_type').value;
+        if (type === 'batch') {
+            const rows = document.querySelectorAll('#sortable-stages li');
+            if (!rows.length) {
+                const err = document.getElementById('batch-stages-error');
+                if (err) err.style.display = 'block';
+                isValid = false;
+                if (!firstInvalid) firstInvalid = document.getElementById('sortable-stages');
+            }
+        }
+
+        if (!isValid) {
+            if (firstInvalid) firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+
+        const num = document.getElementById('order_number').value;
+        const name = nameInput.value.trim();
+        const client = clientInput.value.trim();
+        const dateCreated = document.getElementById('creation_date').value;
+        const amount = document.getElementById('order_amount').value || 0;
+        const comment = document.getElementById('order-comment').value.trim();
+        const totalQty = document.getElementById('total-order-qty').textContent;
+
+        let positionsHtml = '';
+        document.querySelectorAll('.position-card').forEach((c, idx) => {
+            const pId = c.dataset.pid;
+            const prod = c.querySelector(`[name="product_${pId}"]`).value;
+            const pat = c.querySelector(`[name="pattern_${pId}"]`).value;
+            const fab = c.querySelector(`[name="fabric_${pId}"]`).value;
+            const den = c.querySelector(`[name="density_${pId}"]`).value;
+            const col = c.querySelector(`[name="color_${pId}"]`).value;
+            const posQty = c.querySelector(`#pos-total-display-${pId}`).textContent;
+
+            positionsHtml += `
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin-bottom:8px;">
+                    <div style="font-weight:700; color:#1d4ed8; margin-bottom:4px;">Позиция #${idx+1}: ${prod || '—'} (${posQty})</div>
+                    <div style="font-size:12px; color:#4b5563;">
+                        <strong>Крой:</strong> ${pat || '—'} | <strong>Полотно:</strong> ${fab || '—'} | <strong>Плотность:</strong> ${den || '—'} | <strong>Цвет:</strong> ${col || '—'}
+                    </div>
+                </div>
+            `;
+        });
+
+        let stagesHtml = '';
+        document.querySelectorAll('#sortable-stages li').forEach(s => {
+            const sName = s.querySelector('input[name="stage_type[]"]').value;
+            const sDates = s.querySelector('.stage-dates-display').textContent;
+            stagesHtml += `<li><strong>${sName}:</strong> ${sDates}</li>`;
+        });
+
+        const summaryHtml = `
+            <div style="margin-bottom:15px; background:rgba(37,99,235,0.06); padding:12px; border-radius:6px;">
+                <div style="font-size:16px; font-weight:800; margin-bottom:6px;">Заказ #${num} — ${name}</div>
+                <div><strong>Клиент / Бренд:</strong> ${client}</div>
+                <div><strong>Дата оформления:</strong> ${formatD(dateCreated)}</div>
+                <div><strong>Сумма заказа:</strong> ${amount} ₽</div>
+                <div><strong>Общий тираж:</strong> ${totalQty} шт.</div>
+                ${comment ? `<div><strong>Комментарий:</strong> ${comment}</div>` : ''}
+            </div>
+
+            <h4 style="margin-bottom:8px;">Состав изделий:</h4>
+            ${positionsHtml || '<p style="color:#6b7280;">Позиции не добавлены</p>'}
+
+            <h4 style="margin-top:15px; margin-bottom:8px;">График производства:</h4>
+            <div style="margin-bottom:6px;"><strong>Старт:</strong> ${document.getElementById('order-start-display').textContent}</div>
+            <ul style="padding-left:20px; margin:0;">${stagesHtml}</ul>
+        `;
+
+        document.getElementById('summaryContent').innerHTML = summaryHtml;
+        document.getElementById('summaryModal').classList.add('active');
+    }
+
+    function closeSummaryModal() {
+        document.getElementById('summaryModal').classList.remove('active');
+    }
+
+    function submitOrderFormFinal() {
+        document.getElementById('orderForm').submit();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadOccupiedSlots();
+        addPositionCard();
+    });
+
+    
+    
+    // Логика черновиков: живое автосохранение на лету и перехват ухода
+    let currentDraftId = new URLSearchParams(window.location.search).get('draft_id') || null;
+    let isOrderSubmitted = false;
+    let autoSaveTimer = null;
+
+    if (currentDraftId) {
+        const inp = document.getElementById('loaded_draft_id');
+        if (inp) inp.value = currentDraftId;
+    }
+
+    function hasAnyFormData() {
+        const name = (document.getElementById('order-name') ? document.getElementById('order-name').value.trim() : '');
+        const client = (document.getElementById('client_name') ? document.getElementById('client_name').value.trim() : '');
+        const comment = (document.getElementById('order-comment') ? document.getElementById('order-comment').value.trim() : '');
+        const contact = (document.getElementById('contact_input') ? document.getElementById('contact_input').value.trim() : '');
+        const amount = (document.getElementById('order_amount') ? parseFloat(document.getElementById('order_amount').value) || 0 : 0);
+        const stagesCount = document.querySelectorAll('#sortable-stages li').length;
+        const totalQty = parseInt(document.getElementById('total-order-qty').textContent, 10) || 0;
+
+        let hasSelectedOption = false;
+        document.querySelectorAll('.position-card select').forEach(s => {
+            if (s.value) hasSelectedOption = true;
+        });
+
+        return Boolean(name || client || comment || contact || amount > 0 || stagesCount > 0 || totalQty > 0 || hasSelectedOption);
+    }
+
+    function getDraftTitle() {
+        const name = (document.getElementById('order-name') ? document.getElementById('order-name').value.trim() : '');
+        const client = (document.getElementById('client_name') ? document.getElementById('client_name').value.trim() : '');
+        const num = (document.getElementById('order_number') ? document.getElementById('order_number').value : '');
+        if (name) return name;
+        if (client) return 'Заказ ' + client;
+        return 'Черновик #' + (num || '1');
+    }
+
+    function serializeFormState() {
+        const formEl = document.getElementById('orderForm');
+        const formData = new FormData(formEl);
+        const fields = {};
+        for (let [k, v] of formData.entries()) {
+            if (k !== 'order_files' && k !== 'loaded_draft_id') {
+                if (k.endsWith('[]')) {
+                    if (!fields[k]) fields[k] = [];
+                    fields[k].push(v);
+                } else {
+                    fields[k] = v;
+                }
+            }
+        }
+        return fields;
+    }
+
+    async function saveCurrentAsDraft(isSilent = false) {
+        if (isOrderSubmitted) return;
+        if (!hasAnyFormData()) {
+            if (!isSilent) alert('Форма пуста, сохранять нечего.');
+            return;
+        }
+
+        const draftObj = {
+            draft_id: currentDraftId,
+            title: getDraftTitle(),
+            fields: serializeFormState()
+        };
+
+        const payload = JSON.stringify(draftObj);
+
+        try {
+            const res = await fetch('/api/drafts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: payload,
+                keepalive: true
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                currentDraftId = data.draft_id;
+                const inp = document.getElementById('loaded_draft_id');
+                if (inp) inp.value = currentDraftId;
+                if (!isSilent) alert('Черновик сохранён!');
+                if (typeof fetchDraftsCount === 'function') fetchDraftsCount();
+            }
+        } catch(e) {
+            if (!isSilent) alert('Ошибка при сохранении черновика');
+        }
+    }
+
+    function scheduleAutoSave() {
+        if (isOrderSubmitted) return;
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(() => {
+            if (hasAnyFormData()) {
+                saveCurrentAsDraft(true);
+            }
+        }, 1000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const formEl = document.getElementById('orderForm');
+        if (formEl) {
+            formEl.addEventListener('input', scheduleAutoSave);
+            formEl.addEventListener('change', scheduleAutoSave);
+        }
+
+        // Перехват клика по всем ссылкам ухода (включая логотип Bomonti и меню)
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (link && link.href && !link.target && !link.hasAttribute('download')) {
+                if (!isOrderSubmitted && hasAnyFormData()) {
+                    saveCurrentAsDraft(true);
+                }
+            }
+        });
+
+        // События смены видимости вкладки и закрытия окна
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && !isOrderSubmitted && hasAnyFormData()) {
+                saveCurrentAsDraft(true);
+            }
+        });
+        window.addEventListener('pagehide', () => {
+            if (!isOrderSubmitted && hasAnyFormData()) {
+                saveCurrentAsDraft(true);
+            }
+        });
+
+        setTimeout(loadDraftIfPresent, 250);
+    });
+
+    // Отметка о финальной отправке, чтобы не создавать черновик из сохранённого заказа
+    const origSubmit = submitOrderFormFinal;
+    submitOrderFormFinal = function() {
+        isOrderSubmitted = true;
+        clearTimeout(autoSaveTimer);
+        origSubmit();
+    };
+
+    async function loadDraftIfPresent() {
+        if (!currentDraftId) return;
+        try {
+            const res = await fetch('/api/drafts/' + currentDraftId);
+            const draft = await res.json();
+            if (!draft || !draft.data_json) return;
+            const data = JSON.parse(draft.data_json);
+            const f = data.fields || {};
+
+            if (f.order_number) document.getElementById('order_number').value = f.order_number;
+            if (f.name) document.getElementById('order-name').value = f.name;
+            if (f.client_name) document.getElementById('client_name').value = f.client_name;
+            if (f.creation_date) document.getElementById('creation_date').value = f.creation_date;
+            if (f.amount) document.getElementById('order_amount').value = f.amount;
+            if (f.order_type) {
+                document.getElementById('order_type').value = f.order_type;
+                toggleOrderTypeUI();
+            }
+            if (f.contact) document.getElementById('contact_input').value = f.contact;
+            if (f.comment) document.getElementById('order-comment').value = f.comment;
+            if (f.order_start_date) {
+                document.getElementById('global-start-date').value = f.order_start_date;
+                document.getElementById('global-start-q').value = f.order_start_q || 1;
+                document.getElementById('order-start-display').textContent = `${formatD(f.order_start_date)}, ${f.order_start_q || 1}-я часть дня`;
+            }
+        } catch(e) {}
+    }
+
+</script>
+
+
+<style>
+    .form-block-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .position-card { background: #fdfdfd; border: 1px solid #cbd5e1; border-radius: 6px; padding: 15px; margin-bottom: 12px; }
+    .size-grid-wrapper { overflow-x: auto; }
+    .size-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 12px; }
+    .size-table th { background: #f1f5f9; padding: 6px 4px; border: 1px solid #cbd5e1; font-weight: 700; color: #334155; }
+    .size-table td { padding: 4px; border: 1px solid #cbd5e1; }
+    .size-input { width: 100%; min-width: 45px; text-align: center; padding: 5px 2px; border: 1px solid #d1d5db; border-radius: 4px; font-weight: 600; }
+    .stage-dropdown-menu { display: none; position: absolute; bottom: 100%; left: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 50; min-width: 190px; margin-bottom: 4px; }
+    .stage-dropdown-menu.active { display: block; }
+    .stage-dropdown-item { padding: 8px 14px; font-size: 13px; cursor: pointer; font-weight: 600; color: #334155; }
+    .stage-dropdown-item:hover { background: #f1f5f9; color: #2563eb; }
+    .stage-dropdown-divider { height: 1px; background: #e2e8f0; margin: 4px 0; }
+    body.dark-theme .form-block-card { background: #1e1e1e; border-color: #333; }
+    body.dark-theme .position-card { background: #262626; border-color: #444; }
+    body.dark-theme .size-table th { background: #2d2d2d; border-color: #444; color: #e5e7eb; }
+    body.dark-theme .size-table td { border-color: #444; }
+    body.dark-theme .size-input { background: #374151; border-color: #4b5563; color: #fff; }
+    body.dark-theme .stage-dropdown-menu { background: #2d2d2d; border-color: #444; }
+    body.dark-theme .stage-dropdown-item { color: #e5e7eb; }
+    body.dark-theme .stage-dropdown-item:hover { background: #374151; color: #60a5fa; }
+</style>
+{% endblock %}

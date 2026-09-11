@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Заказы на {{ target_date.strftime('%d.%m.%Y') }}{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <a href="/" class="btn btn-outline">← В календарь</a>
+    <h2>Заказы на {{ target_date.strftime('%d.%m.%Y') }}</h2>
+    <a href="/add_order" class="btn btn-primary">+ Заказ</a>
+</div>
+{% if groups %}
+    <div style="display:grid; gap:15px;">
+        {% for group in groups %}
+            <div style="background:#fff; padding:20px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1); border-left:4px solid #2563eb;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3>{{ group.name }} <span style="font-size:12px; background:#e5e7eb; color:#111; padding:2px 6px; border-radius:4px;">{{ 'Образец' if group.order_type == 'sample' else 'Партия' }}</span></h3>
+                    <div style="font-size:13px; color:#6b7280;">
+                        Клиент: <strong>{{ group.client or '-' }}</strong> | Контакт: <strong>{{ group.contact or '-' }}</strong> | Изделий: <strong>{{ group.quantity or 0 }}</strong> шт.
+                    </div>
+                </div>
+
+                {% if group.comment %}
+                    <div style="font-size: 13px; color: #d97706; margin-bottom: 10px; padding: 6px 10px; background: rgba(217, 119, 6, 0.1); border-radius: 4px;">
+                        <strong>Комментарий:</strong> {{ group.comment }}
+                    </div>
+                {% endif %}
+
+                <div style="margin-bottom: 15px;">
+                    {% if group.order_type == 'sample' %}
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            {% for stage in group.stages %}
+                                <div class="stage-info-item sample-stage-item">
+                                    {{ stage.type }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {% for stage in group.stages %}
+                            <div style="margin-bottom:5px; font-size:14px;">
+                                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; background-color:#3b82f6;"></span>
+                                <strong>{{ stage.type }}</strong> : {{ stage.start|format_date }} (ч.{{ stage.start_q }}) — {{ stage.end|format_date }} (ч.{{ stage.end_q }})
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <a href="#" class="btn btn-outline" onclick="openOrderModal('{{ group.id }}'); return false;">Посмотреть детали</a>
+                    <a href="/edit_order/{{ group.id }}" class="btn btn-primary">Редактировать</a>
+                    <form action="/delete_order/{{ group.id }}" method="POST" style="margin-left:auto;" onsubmit="return confirm('Точно удалить заказ со всеми этапами?');">
+                        <button type="submit" class="btn btn-danger">Удалить</button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div style="text-align:center; padding:50px; color:#6b7280;">
+        <p>На этот день задач не запланировано.</p>
+    </div>
+{% endif %}
+{% endblock %}
