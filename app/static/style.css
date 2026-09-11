@@ -740,3 +740,80 @@ input[type="date"] {
 .dark-theme .day-bg-3 { background-color: rgba(236, 72, 153, 0.20) !important; }  /* Заказ 4: Розовый */
 .dark-theme .day-bg-4 { background-color: rgba(168, 85, 247, 0.20) !important; }  /* Заказ 5: Фиолетовый */
 .dark-theme .day-bg-5 { background-color: rgba(249, 115, 22, 0.20) !important; }  /* Заказ 6: Оранжевый */
+
+/* =========================================================
+   ТЕМНАЯ ТЕМА: ЭТАПЫ, НАНЕСЕНИЯ И ВЫПАДАЮЩИЕ МЕНЮ
+   ========================================================= */
+
+/* Строки этапов производства в темной теме */
+.dark-theme .stage-item-row {
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    color: #f3f4f6 !important;
+}
+.dark-theme .stage-item-row input[name="stage_type[]"] {
+    color: #f3f4f6 !important;
+}
+.dark-theme .stage-item-row select.duration-select,
+.dark-theme .stage-item-row .custom-duration {
+    background: #0d1117 !important;
+    border: 1px solid #30363d !important;
+    color: #f3f4f6 !important;
+}
+
+/* Строки нанесений (emb-row) */
+.emb-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: #f8fafc;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+}
+.dark-theme .emb-row {
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+}
+.dark-theme .emb-row select,
+.dark-theme .emb-row input {
+    background: #0d1117 !important;
+    border: 1px solid #30363d !important;
+    color: #f3f4f6 !important;
+}
+
+/* Выпадающее меню "+ Добавить этап ▾" */
+.dark-theme .stage-dropdown-menu {
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+}
+.dark-theme .stage-dropdown-item {
+    color: #e5e7eb !important;
+}
+.dark-theme .stage-dropdown-item:hover {
+    background: #21262d !important;
+    color: #58a6ff !important;
+}
+.dark-theme .stage-dropdown-divider {
+    background: #30363d !important;
+}
+
+/* Всплывающий календарь выбора дат и смен */
+.dark-theme .day-cell-picker {
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    color: #e5e7eb !important;
+}
+.dark-theme .q-block {
+    background: #21262d !important;
+}
+.dark-theme .q-block:hover {
+    background: #30363d !important;
+}
+.dark-theme .q-block.occupied {
+    background: #dc2626 !important;
+}
+.dark-theme .q-block.selected {
+    background: #2563eb !important;
+}

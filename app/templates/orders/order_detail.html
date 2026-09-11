@@ -2,12 +2,12 @@
 {% block title %}Заказ №{{ order.order_number or order.id }} - {{ order.name }}{% endblock %}
 {% block content %}
 <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-    <a href="{% if back_url == 'calendar' %}/?year={{ order.start_date.split('-')[0] }}&month={{ order.start_date.split('-')[1]|int }}{% else %}/orders{% endif %}" class="btn btn-outline" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+    <a href="{% if back_url == 'calendar' %}/?year={{ (order.start_date or '2026-01-01').split('-')[0] }}&month={{ ((order.start_date or '2026-01-01').split('-')[1]|int if '-' in (order.start_date or '') else 1) }}{% else %}/orders{% endif %}" class="btn btn-outline" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
         ← {% if back_url == 'calendar' %}В календарь{% else %}В заказы{% endif %}
     </a>
     
     <div style="display: flex; gap: 10px;">
-        <a href="/?year={{ order.start_date.split('-')[0] }}&month={{ order.start_date.split('-')[1]|int }}&tab={{ order.order_type }}" class="btn btn-outline" style="border-color:#2563eb; color:#2563eb; font-weight:600;">
+        <a href="/?year={{ (order.start_date or '2026-01-01').split('-')[0] }}&month={{ ((order.start_date or '2026-01-01').split('-')[1]|int if '-' in (order.start_date or '') else 1) }}&tab={{ order.order_type }}" class="btn btn-outline" style="border-color:#2563eb; color:#2563eb; font-weight:600;">
             Открыть в календаре
         </a>
         <a href="/edit_order/{{ order.id }}" class="btn btn-primary">Редактировать</a>
@@ -44,7 +44,7 @@
                 <span>Общий тираж:</span> <strong style="font-size: 16px; color: #2563eb;">{{ order.quantity or 0 }} шт.</strong>
             </div>
             <div class="info-row">
-                <span>Сумма заказа:</span> <strong style="font-size: 16px; color: #059669;">{{ "{:,.0f}".format(order.amount).replace(',', ' ') if order.amount else 0 }} ₽</strong>
+                <span>Сумма заказа:</span> <strong style="font-size: 16px; color: #059669;">{{ "{:,.0f}".format(order.amount|float).replace(',', ' ') if (order.amount and (order.amount|float > 0)) else 0 }} ₽</strong>
             </div>
         </div>
     </div>

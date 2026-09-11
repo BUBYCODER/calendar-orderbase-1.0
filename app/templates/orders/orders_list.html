@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Заказы{% endblock %}
 {% block content %}
-<div style="margin-bottom: 20px;">
-    <h2>Заказы</h2>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+    <h2 style="margin: 0;">Заказы</h2>
+    <a href="/add_order" class="btn btn-primary">+ Заказ</a>
 </div>
 
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 12px;">
@@ -50,7 +51,7 @@
                 </td>
                 <td>{{ order.client_name or '-' }}</td>
                 <td style="font-weight: 600; color: #059669;">
-                    {{ "{:,.0f}".format(order.amount).replace(',', ' ') if order.amount else '—' }} {% if order.amount %}₽{% endif %}
+                    {{ "{:,.0f}".format(order.amount|float).replace(',', ' ') if (order.amount and (order.amount|float > 0)) else '—' }} {% if order.amount %}₽{% endif %}
                 </td>
                 <td style="font-weight: 600;">{{ order.quantity or 0 }} шт.</td>
             </tr>

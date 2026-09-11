@@ -14,23 +14,51 @@ STAGE_LIST = [
 
 @legacy_bp.app_template_filter('format_date')
 def format_date_filter(date_str):
-    try: return datetime.strptime(date_str, '%Y-%m-%d').strftime('%d.%m.%Y')
-    except: return date_str
+    if not date_str:
+        return ''
+    try:
+        return datetime.strptime(str(date_str)[:10], '%Y-%m-%d').strftime('%d.%m.%Y')
+    except:
+        return str(date_str)
+
+def safe_parse_date(d_val):
+    if not d_val:
+        return None
+    try:
+        clean_str = str(d_val).strip()[:10]
+        return date.fromisoformat(clean_str)
+    except:
+        return None
 
 def date_to_abs_q(d_str, q):
-    return date.fromisoformat(d_str).toordinal() * 4 + int(q) - 1
+    d = safe_parse_date(d_str)
+    if not d:
+        return 0
+    try:
+        q_int = int(q or 1)
+    except:
+        q_int = 1
+    return d.toordinal() * 4 + max(1, min(4, q_int)) - 1
 
 def abs_to_date_and_q(abs_q):
-    d = date.fromordinal(abs_q // 4)
-    return d.isoformat(), (abs_q % 4) + 1
+    try:
+        d = date.fromordinal(int(abs_q) // 4)
+        return d.isoformat(), (int(abs_q) % 4) + 1
+    except:
+        return date.today().isoformat(), 1
 
 def touches_month(order, year, month):
-    start_d = date.fromisoformat(order['start_date'])
-    end_d = date.fromisoformat(order['end_date'])
-    m_start = date(year, month, 1)
-    _, last_day = calendar.monthrange(year, month)
-    m_end = date(year, month, last_day)
-    return not (end_d < m_start or start_d > m_end)
+    start_d = safe_parse_date(order.get('start_date'))
+    end_d = safe_parse_date(order.get('end_date'))
+    if not start_d or not end_d:
+        return False
+    try:
+        m_start = date(year, month, 1)
+        _, last_day = calendar.monthrange(year, month)
+        m_end = date(year, month, last_day)
+        return not (end_d < m_start or start_d > m_end)
+    except:
+        return False
 
 def calculate_order_pieces_for_month(quantity, start_date_str, start_q, end_date_str, end_q, target_year, target_month):
     if not quantity or quantity <= 0 or not start_date_str or not end_date_str:
