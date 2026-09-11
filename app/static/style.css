@@ -817,3 +817,16 @@ input[type="date"] {
 .dark-theme .q-block.selected {
     background: #2563eb !important;
 }
+
+/* Плавное затемнение без резких скачков */
+.q-cell {
+    transition: filter 0.15s ease !important;
+}
+
+.q-cell.hovered {
+    filter: brightness(0.85) !important;
+}
+
+.dark-theme .q-cell.hovered {
+    filter: brightness(0.82) !important;
+}

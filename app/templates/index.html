@@ -118,16 +118,43 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.q-cell:not(.empty)').forEach(cell => {
-            cell.addEventListener('mouseenter', () => {
-                const id = cell.dataset.orderId;
-                document.querySelectorAll(`.q-cell[data-order-id="${id}"]`).forEach(c => c.classList.add('hovered'));
+        // Бесшовная плавная подсветка всего заказа при наведении на любое поле дня
+        let activeHoverOrderId = null;
+        const daysGrid = document.querySelector('.days-grid');
+
+        if (daysGrid) {
+            daysGrid.addEventListener('mouseover', (e) => {
+                const target = e.target;
+                const cell = target.closest('.q-cell[data-order-id]');
+                const dayCell = target.closest('.day-cell');
+
+                let orderId = null;
+                if (cell) {
+                    orderId = cell.dataset.orderId;
+                } else if (dayCell) {
+                    const firstOcc = dayCell.querySelector('.q-cell[data-order-id]');
+                    if (firstOcc) orderId = firstOcc.dataset.orderId;
+                }
+
+                if (orderId && orderId !== activeHoverOrderId) {
+                    if (activeHoverOrderId) {
+                        document.querySelectorAll(`.q-cell[data-order-id="${activeHoverOrderId}"]`).forEach(c => c.classList.remove('hovered'));
+                    }
+                    activeHoverOrderId = orderId;
+                    document.querySelectorAll(`.q-cell[data-order-id="${orderId}"]`).forEach(c => c.classList.add('hovered'));
+                } else if (!orderId && activeHoverOrderId) {
+                    document.querySelectorAll(`.q-cell[data-order-id="${activeHoverOrderId}"]`).forEach(c => c.classList.remove('hovered'));
+                    activeHoverOrderId = null;
+                }
             });
-            cell.addEventListener('mouseleave', () => {
-                const id = cell.dataset.orderId;
-                document.querySelectorAll(`.q-cell[data-order-id="${id}"]`).forEach(c => c.classList.remove('hovered'));
+
+            daysGrid.addEventListener('mouseleave', () => {
+                if (activeHoverOrderId) {
+                    document.querySelectorAll(`.q-cell[data-order-id="${activeHoverOrderId}"]`).forEach(c => c.classList.remove('hovered'));
+                    activeHoverOrderId = null;
+                }
             });
-        });
+        }
 
         document.querySelectorAll('.day-cell').forEach(dayEl => {
             dayEl.addEventListener('click', (e) => {
