@@ -238,12 +238,10 @@ def add_order_view():
 
     next_num = database.get_next_available_order_number()
     today_str = date.today().isoformat()
-    clients = dict_model.get_all_clients()
     return render_template('add_order.html', 
                            stage_list=STAGE_LIST, 
                            next_num=next_num, 
-                           today_str=today_str,
-                           clients=clients)
+                           today_str=today_str)
 
 @orders_bp.route('/delete_draft/<int:draft_id>', methods=['POST'])
 def delete_draft_view(draft_id):
@@ -257,129 +255,6 @@ def check_order_number_api():
     exclude_id = safe_int(request.args.get('exclude_id'), default=None)
     taken = database.check_order_number_taken(num, exclude_id=exclude_id)
     return jsonify({'taken': taken})
-
-@orders_bp.route('/edit_order/<int:order_id>', methods=['GET', 'POST'])
-def edit_order_view(order_id):
-    data = database.get_order_full_details(order_id)
-    if not data:
-        flash('Заказ не найден', 'error')
-        return redirect(url_for('orders.orders_list'))
-    order, stages, files, items = data
-
-    if request.method == 'POST':
-        try:
-            order_number = safe_int(request.form.get('order_number'), default=order.get('order_number') or order_id)
-            if order_number and database.check_order_number_taken(order_number, exclude_id=order_id):
-                flash(f'Номер заказа {order_number} уже занят! Выберите другой.', 'error')
-                return redirect(url_for('orders.edit_order_view', order_id=order_id))
-
-            name = request.form.get('name', '').strip()
-            if not name:
-                flash('Название заказа обязательно', 'error')
-                return redirect(url_for('orders.edit_order_view', order_id=order_id))
-
-            client_name = request.form.get('client_name', '').strip()
-            client_id = database.get_or_create_client(client_name) if client_name else None
-
-            creation_date = request.form.get('creation_date') or date.today().isoformat()
-            amount = safe_float(request.form.get('amount'))
-            order_type = request.form.get('order_type', order.get('order_type', 'batch'))
-            contact = request.form.get('contact', '').strip()
-            comment = request.form.get('comment', '').strip()
-            o_start = request.form.get('order_start_date') or order.get('start_date') or date.today().isoformat()
-            o_start_q = safe_int(request.form.get('order_start_q'), default=order.get('start_q', 1))
-
-            types = request.form.getlist('stage_type[]')
-            starts = request.form.getlist('start_date[]')
-            start_qs = request.form.getlist('start_q[]')
-            ends = request.form.getlist('end_date[]')
-            end_qs = request.form.getlist('end_q[]')
-
-            new_stages = []
-            for i in range(len(types)):
-                t = types[i].strip()
-                if not t: continue
-                st = starts[i] if i < len(starts) and starts[i] else o_start
-                st_q = safe_int(start_qs[i] if i < len(start_qs) else 1, default=1)
-                en = ends[i] if i < len(ends) and ends[i] else st
-                en_q = safe_int(end_qs[i] if i < len(end_qs) else 4, default=4)
-                new_stages.append({'type': t, 'start': st, 'start_q': st_q, 'end': en, 'end_q': en_q})
-
-            if not new_stages:
-                if order_type == 'sample':
-                    new_stages = [{'type': 'Образец', 'start': o_start, 'start_q': o_start_q, 'end': o_start, 'end_q': o_start_q}]
-                else:
-                    flash('Добавьте хотя бы один этап производства', 'error')
-                    return redirect(url_for('orders.edit_order_view', order_id=order_id))
-
-            def safe_calc_abs(d, q):
-                d_obj = safe_date_obj(d, fallback=date.today())
-                return d_obj.toordinal() * 4 + safe_int(q, default=1)
-
-            max_stage = max(new_stages, key=lambda s: safe_calc_abs(s['end'], s['end_q']))
-            o_end = max_stage['end']
-            o_end_q = safe_int(max_stage['end_q'], default=4)
-            quantity = order.get('quantity', 0)
-
-            database.update_order_full(
-                order_id, name, client_name, contact, comment, order_type, quantity,
-                o_start, o_start_q, o_end, o_end_q, new_stages,
-                order_number=order_number, client_id=client_id,
-                contact_type=order.get('contact_type', 'Телефон'),
-                amount=amount, created_at=creation_date, positions=None
-            )
-
-            try:
-                upload_folder = current_app.config.get('UPLOAD_FOLDER', 'app/static/uploads')
-                os.makedirs(upload_folder, exist_ok=True)
-                new_files = request.files.getlist('order_files')
-                for file in new_files:
-                    if file and file.filename:
-                        orig_name = file.filename
-                        ext = os.path.splitext(orig_name)[1]
-                        disk_name = f"{order_id}_{uuid.uuid4().hex[:8]}{ext}"
-                        file.save(os.path.join(upload_folder, disk_name))
-                        database.add_order_file(order_id, orig_name, f"uploads/{disk_name}", position_index=1)
-            except:
-                pass
-
-            flash(f'Заказ #{order_number} успешно обновлен', 'success')
-            return redirect(url_for('orders.order_detail', order_id=order_id))
-
-        except Exception as e:
-            flash(f'Ошибка при обновлении заказа: {str(e)}', 'error')
-            return redirect(url_for('orders.edit_order_view', order_id=order_id))
-
-    def safe_date_to_abs_q(d_str, q):
-        if not d_str: return 0
-        try: return date.fromisoformat(str(d_str)[:10]).toordinal() * 4 + safe_int(q, default=1) - 1
-        except: return 0
-
-    for s in stages:
-        s_start = s.get('start_date') or s.get('start')
-        s_end = s.get('end_date') or s.get('end')
-        s_abs = safe_date_to_abs_q(s_start, s.get('start_q', 1))
-        e_abs = safe_date_to_abs_q(s_end, s.get('end_q', 1))
-        s['duration_days'] = max(0.25, (e_abs - s_abs + 1) / 4.0) if (s_start and s_end) else 0
-
-    clients = dict_model.get_all_clients()
-    return render_template('edit_order.html', order=order, stages=stages, files=files, clients=clients)
-
-@orders_bp.route('/delete_file/<int:file_id>', methods=['POST'])
-def delete_file_view(file_id):
-    order_id = request.form.get('order_id')
-    file_path = database.delete_order_file(file_id)
-    if file_path:
-        try:
-            full_path = os.path.join(current_app.root_path, 'static', file_path)
-            if os.path.exists(full_path):
-                os.remove(full_path)
-        except:
-            pass
-    flash('Файл удален', 'success')
-    if order_id:
-        return redirect(url_for('orders.edit_order_view', order_id=order_id))
-    return redirect(request.referrer or url_for('orders.orders_list'))
 
 @orders_bp.route('/api/drafts', methods=['GET', 'POST'])
 def api_drafts():

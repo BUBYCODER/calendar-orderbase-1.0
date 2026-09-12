@@ -10,12 +10,14 @@ def create_app():
     app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
-    # Безопасная инициализация БД при каждом запуске
-    database.init_db()
-    database.upgrade_db()
-    database.cleanup_db()
+    # Инициализация БД
+    if not os.path.exists(database.DB_PATH):
+        database.init_db()
+    else:
+        database.cleanup_db()
+        database.upgrade_db()
 
-    # Регистрация блюпринтов
+    # Регистрация старого функционала (календарь)
     from app.blueprints.legacy import legacy_bp
     app.register_blueprint(legacy_bp)
     
@@ -24,5 +26,5 @@ def create_app():
     
     return app
 
-# WSGI-объект приложения
+# Точка входа для Gunicorn хостинга
 app = create_app()

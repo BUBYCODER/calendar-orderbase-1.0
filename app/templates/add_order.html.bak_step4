@@ -222,145 +222,27 @@
 
     let positionCounter = 0;
 
-function stepSizeInput(btn, step) {
+    
+    function stepSizeInput(btn, step) {
         const box = btn.closest('.size-cell-box');
-        if (!box) return;
         const inp = box.querySelector('.size-input');
-        if (!inp) return;
         let val = parseInt(inp.value || 0, 10) || 0;
         val = Math.max(0, val + step);
         inp.value = val;
         inp.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    function clearFieldError(el) {
-        if (!el) return;
-        el.classList.remove('field-input-error');
-        const parent = el.closest('.form-group') || el.closest('#group-name') || el.parentElement;
-        if (parent) {
-            const err = parent.querySelector('.field-error-text');
-            if (err) err.style.display = 'none';
-        }
-    }
-
-    async function checkOrderNumber(val) {
-        const statusEl = document.getElementById('order-number-status');
-        if (!statusEl) return;
-        if (!val || parseInt(val, 10) <= 0) {
-            statusEl.textContent = '';
-            return;
-        }
-        try {
-            const res = await fetch('/api/check_order_number?number=' + encodeURIComponent(val));
-            const data = await res.json();
-            if (data && data.taken) {
-                statusEl.textContent = 'Номер заказа уже занят!';
-            } else {
-                statusEl.textContent = '';
-            }
-        } catch (e) {
-            statusEl.textContent = '';
-        }
-    }
-
-    function removePositionCard(btn) {
-        const card = btn.closest('.position-card');
-        if (card) {
-            card.remove();
-            updateDeleteButtonsVisibility();
-            recalcGlobalTotal();
-        }
-    }
-
-    function updateDeleteButtonsVisibility() {
+        function updateDeleteButtonsVisibility() {
         const container = document.getElementById('positions-container');
-        if (!container) return;
-        const cards = container.querySelectorAll('.position-card');
-        cards.forEach(c => {
-            const btn = c.querySelector('.pos-delete-btn');
-            if (btn) {
-                btn.style.setProperty('display', cards.length > 1 ? 'inline-block' : 'none', 'important');
+        const cards = container ? container.querySelectorAll('.position-card') : [];
+        if (container) {
+            if (cards.length > 1) {
+                container.classList.add('show-delete-btn');
+            } else {
+                container.classList.remove('show-delete-btn');
             }
-        });
-        if (cards.length > 1) {
-            container.classList.add('show-delete-btn');
-        } else {
-            container.classList.remove('show-delete-btn');
         }
     }
-
-    function addEmbellishmentRow(pId, defaultType, defaultFormat, defaultQty) {
-        const container = document.getElementById('embellishments-container-' + pId);
-        if (!container) return;
-        const totalEl = document.getElementById('pos-total-display-' + pId);
-        const curPosTotal = parseInt(totalEl ? totalEl.textContent : 0, 10) || 0;
-        const qty = defaultQty !== undefined ? defaultQty : curPosTotal;
-
-        const row = document.createElement('div');
-        row.className = 'emb-row';
-        row.style.cssText = 'display:flex; gap:8px; align-items:center; margin-bottom:6px;';
-        row.innerHTML = `
-            <select name="emb_type_${pId}[]" style="padding:4px; font-size:12px; flex:2;">
-                <option value="DTF-печать">DTF-печать</option>
-                <option value="Шелкография">Шелкография</option>
-                <option value="Машинная вышивка">Машинная вышивка</option>
-                <option value="DTF">DTF</option>
-            </select>
-            <select name="emb_format_${pId}[]" style="padding:4px; font-size:12px; flex:1;">
-                <option value="А7">А7</option>
-                <option value="А6">А6</option>
-                <option value="А5">А5</option>
-                <option value="А4" selected>А4</option>
-                <option value="А3">А3</option>
-                <option value="А2">А2</option>
-            </select>
-            <input type="number" name="emb_quantity_${pId}[]" class="emb-qty-input" value="${qty}" min="1" placeholder="Кол-во" style="padding:4px; font-size:12px; width:80px;" oninput="this.dataset.manualEdited='true'">
-            <button type="button" class="btn btn-danger" style="padding:2px 7px; font-size:12px;" onclick="this.closest('.emb-row').remove()">✕</button>
-        `;
-        if (defaultType) {
-            const selType = row.querySelector(`[name="emb_type_${pId}[]"]`);
-            if (selType) selType.value = defaultType;
-        }
-        if (defaultFormat) {
-            const selFmt = row.querySelector(`[name="emb_format_${pId}[]"]`);
-            if (selFmt) selFmt.value = defaultFormat;
-        }
-        container.appendChild(row);
-    }
-
-    function recalcPositionTotal(pId) {
-        const card = document.getElementById('pos-card-' + pId);
-        if (!card) return 0;
-        let sum = 0;
-        card.querySelectorAll('.size-input').forEach(inp => {
-            sum += parseInt(inp.value || 0, 10) || 0;
-        });
-        const posDisplay = document.getElementById('pos-total-display-' + pId);
-        if (posDisplay) posDisplay.textContent = `${sum} шт.`;
-        
-        card.querySelectorAll('.emb-qty-input').forEach(eqInp => {
-            if (!eqInp.dataset.manualEdited) {
-                eqInp.value = sum;
-            }
-        });
-
-        recalcGlobalTotal();
-        return sum;
-    }
-
-    function recalcGlobalTotal() {
-        let globalSum = 0;
-        document.querySelectorAll('.position-card').forEach(card => {
-            card.querySelectorAll('.size-input').forEach(inp => {
-                globalSum += parseInt(inp.value || 0, 10) || 0;
-            });
-        });
-        const totalEl = document.getElementById('total-order-qty');
-        if (totalEl) totalEl.textContent = globalSum;
-        const hiddenTotal = document.getElementById('hidden_total_quantity');
-        if (hiddenTotal) hiddenTotal.value = globalSum;
-    }
-
     function addPositionCard() {
         positionCounter++;
         const pId = positionCounter;
@@ -1183,137 +1065,7 @@ function stepSizeInput(btn, step) {
                 document.getElementById('global-start-q').value = f.order_start_q || 1;
                 document.getElementById('order-start-display').textContent = `Старт: ${formatD(f.order_start_date)}, ${f.order_start_q || 1}-я часть дня`;
             }
-
-            const posIndexes = f['pos_index[]'];
-            if (Array.isArray(posIndexes) && posIndexes.length > 0) {
-                const container = document.getElementById('positions-container');
-                if (container) container.innerHTML = '';
-                positionCounter = 0;
-
-                posIndexes.forEach(pIdStr => {
-                    addPositionCard();
-                    const pId = positionCounter;
-                    const pCard = document.getElementById('pos-card-' + pId);
-                    if (!pCard) return;
-
-                    const prodVal = f['product_' + pIdStr];
-                    if (prodVal) {
-                        const selProd = document.getElementById('product_' + pId);
-                        if (selProd) {
-                            if (PRODUCTS_LIST.includes(prodVal)) {
-                                selProd.value = prodVal;
-                                handleFieldCustomChoice(pId, 'product', prodVal);
-                            } else {
-                                handleFieldCustomChoice(pId, 'product', 'Свой вариант');
-                                const custProd = document.getElementById('custom_product_' + pId);
-                                if (custProd) custProd.value = prodVal;
-                            }
-                        }
-                    }
-
-                    const patVal = f['pattern_' + pIdStr];
-                    if (patVal) {
-                        const selPat = document.getElementById('pattern_' + pId);
-                        if (selPat) {
-                            let patExists = false;
-                            for (let opt of selPat.options) {
-                                if (opt.value === patVal) { patExists = true; break; }
-                            }
-                            if (patExists) {
-                                selPat.value = patVal;
-                            } else {
-                                handleFieldCustomChoice(pId, 'pattern', 'Свой вариант');
-                                const custPat = document.getElementById('custom_pattern_' + pId);
-                                if (custPat) custPat.value = patVal;
-                            }
-                        }
-                    }
-
-                    const fabVal = f['fabric_' + pIdStr];
-                    if (fabVal) {
-                        const selFab = document.getElementById('fabric_' + pId);
-                        if (selFab) {
-                            if (FABRICS_LIST.includes(fabVal)) {
-                                selFab.value = fabVal;
-                                handleFieldCustomChoice(pId, 'fabric', fabVal);
-                            } else {
-                                handleFieldCustomChoice(pId, 'fabric', 'Свой вариант');
-                                const custFab = document.getElementById('custom_fabric_' + pId);
-                                if (custFab) custFab.value = fabVal;
-                            }
-                        }
-                    }
-
-                    const denVal = f['density_' + pIdStr];
-                    if (denVal) {
-                        const selDen = document.getElementById('density_' + pId);
-                        if (selDen) {
-                            let denExists = false;
-                            for (let opt of selDen.options) {
-                                if (opt.value === denVal) { denExists = true; break; }
-                            }
-                            if (denExists) {
-                                selDen.value = denVal;
-                            } else {
-                                handleFieldCustomChoice(pId, 'density', 'Свой вариант');
-                                const custDen = document.getElementById('custom_density_' + pId);
-                                if (custDen) custDen.value = denVal;
-                            }
-                        }
-                    }
-
-                    const colVal = f['color_' + pIdStr];
-                    if (colVal) {
-                        const selCol = document.getElementById('color_' + pId);
-                        if (selCol) {
-                            if (COLORS_LIST.includes(colVal)) {
-                                selCol.value = colVal;
-                            } else {
-                                handleFieldCustomChoice(pId, 'color', 'Свой вариант');
-                                const custCol = document.getElementById('custom_color_' + pId);
-                                if (custCol) custCol.value = colVal;
-                            }
-                        }
-                    }
-
-                    ['3xs', '2xs', 'xs', 's', 'm', 'l', 'xl', '2xl', '3xl'].forEach(sz => {
-                        const szVal = f['size_' + sz + '_' + pIdStr];
-                        if (szVal !== undefined) {
-                            const inp = pCard.querySelector(`[name="size_${sz}_${pId}"]`);
-                            if (inp) inp.value = szVal;
-                        }
-                    });
-
-                    const embTypes = f['emb_type_' + pIdStr + '[]'] || [];
-                    const embFmts = f['emb_format_' + pIdStr + '[]'] || [];
-                    const embQtys = f['emb_quantity_' + pIdStr + '[]'] || [];
-                    if (Array.isArray(embTypes)) {
-                        for (let ei = 0; ei < embTypes.length; ei++) {
-                            addEmbellishmentRow(pId, embTypes[ei], embFmts[ei] || 'A4', embQtys[ei]);
-                        }
-                    }
-
-                    recalcPositionTotal(pId);
-                });
-            }
-
-            const stageTypes = f['stage_type[]'];
-            if (Array.isArray(stageTypes) && stageTypes.length > 0) {
-                const list = document.getElementById('sortable-stages');
-                if (list) list.innerHTML = '';
-                stageTypes.forEach(stName => {
-                    if (stName) addStageRow(stName);
-                });
-            }
-
-            if (f.order_type === 'sample') {
-                calculateSampleSchedule();
-            } else {
-                calculateSchedule();
-            }
-        } catch(e) {
-            console.error("Error loading draft:", e);
-        }
+        } catch(e) {}
     }
 </script>
 {% endblock %}

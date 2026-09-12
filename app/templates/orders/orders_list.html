@@ -9,18 +9,10 @@
 <!-- Пункт 3 и 6 ТЗ: вкладки с чистыми цифрами-счётчиками без "шт/ед" -->
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 12px;">
     <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-        <a href="?filter=all&search={{ search }}" class="tab-btn {% if filter_type == 'all' %}active{% endif %}">
-            Все <span class="tab-badge">{{ counts.all }}</span>
-        </a>
-        <a href="?filter=batch&search={{ search }}" class="tab-btn {% if filter_type == 'batch' %}active{% endif %}">
-            Основные партии <span class="tab-badge">{{ counts.batch }}</span>
-        </a>
-        <a href="?filter=sample&search={{ search }}" class="tab-btn {% if filter_type == 'sample' %}active{% endif %}">
-            Образцы <span class="tab-badge">{{ counts.sample }}</span>
-        </a>
-        <a href="?filter=drafts&search={{ search }}" class="tab-btn {% if filter_type == 'drafts' %}active{% endif %}" style="border-color: #f59e0b; color: #f59e0b;">
-            Черновики <span class="tab-badge" style="background: #f59e0b; color: #000;">{{ counts.drafts }}</span>
-        </a>
+        <a href="?filter=all&search={{ search }}" class="tab-btn {% if filter_type == 'all' %}active{% endif %}">Все <span class="tab-badge">{{ counts.all }}</span></a>
+        <a href="?filter=batch&search={{ search }}" class="tab-btn {% if filter_type == 'batch' %}active{% endif %}">Основные партии <span class="tab-badge">{{ counts.batch }}</span></a>
+        <a href="?filter=sample&search={{ search }}" class="tab-btn {% if filter_type == 'sample' %}active{% endif %}">Образцы <span class="tab-badge">{{ counts.sample }}</span></a>
+        <a href="?filter=drafts&search={{ search }}" class="tab-btn {% if filter_type == 'drafts' %}active{% endif %}">Черновики <span class="tab-badge">{{ counts.drafts }}</span></a>
     </div>
 
     <form method="GET" action="/orders" style="display: flex; gap: 8px; flex: 1; max-width: 420px; min-width: 260px;">
@@ -49,7 +41,7 @@
         <tbody>
             {% for d in drafts %}
             <tr>
-                <td style="font-weight: 600; color: #f59e0b;">{{ d.title }}</td>
+                <td style="font-weight: 600; color: #2563eb;">{{ d.title }}</td>
                 <td style="color: #6b7280; font-size: 13px;">{{ d.updated_at[:16] if d.updated_at else '-' }}</td>
                 <td>
                     <div style="display: flex; gap: 8px;">

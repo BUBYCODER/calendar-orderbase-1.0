@@ -782,22 +782,7 @@ input[type="date"] {
     color: #f3f4f6 !important;
 }
 
-/* Выпадающее меню "+ Добавить этап ▾" */
-.dark-theme .stage-dropdown-menu {
-    background: #161b22 !important;
-    border: 1px solid #30363d !important;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
-}
-.dark-theme .stage-dropdown-item {
-    color: #e5e7eb !important;
-}
-.dark-theme .stage-dropdown-item:hover {
-    background: #21262d !important;
-    color: #58a6ff !important;
-}
-.dark-theme .stage-dropdown-divider {
-    background: #30363d !important;
-}
+
 
 /* Всплывающий календарь выбора дат и смен */
 .dark-theme .day-cell-picker {
@@ -829,4 +814,382 @@ input[type="date"] {
 
 .dark-theme .q-cell.hovered {
     filter: brightness(0.82) !important;
+}
+
+/* =========================================================
+   ИСПРАВЛЕНИЕ БЛОКОВ, МЕНЮ ЭТАПОВ И РАЗМЕРНОЙ СЕТКИ
+   ========================================================= */
+
+/* Четкое разделение на отдельные блоки */
+.form-block-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 22px;
+    margin-bottom: 20px;
+}
+
+.dark-theme .form-container {
+    background: #121212 !important;
+    border: 1px solid #222222 !important;
+    padding: 24px !important;
+}
+
+.dark-theme .form-block-card {
+    background: #181818 !important;
+    border: 1px solid #2c2c2c !important;
+    border-radius: 8px !important;
+    padding: 20px !important;
+    margin-bottom: 20px !important;
+}
+
+.dark-theme .position-card {
+    background: #131313 !important;
+    border: 1px solid #2c2c2c !important;
+    border-radius: 6px !important;
+    padding: 16px !important;
+    margin-bottom: 14px !important;
+}
+
+/* Выпадающее меню добавления этапа: закрыто по дефолту */
+.stage-dropdown-menu {
+    display: none !important;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    min-width: 190px;
+    margin-top: 4px;
+}
+
+.stage-dropdown-menu.active {
+    display: block !important;
+}
+
+.dark-theme .stage-dropdown-menu {
+    display: none !important;
+    background: #1e1e1e !important;
+    border: 1px solid #333333 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+}
+
+.dark-theme .stage-dropdown-menu.active {
+    display: block !important;
+}
+
+.stage-dropdown-item {
+    padding: 9px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #374151;
+}
+
+.stage-dropdown-item:hover {
+    background: #f3f4f6;
+    color: #2563eb;
+}
+
+.dark-theme .stage-dropdown-item {
+    color: #e5e5e5 !important;
+}
+
+.dark-theme .stage-dropdown-item:hover {
+    background: #2a2a2a !important;
+    color: #58a6ff !important;
+}
+
+.stage-dropdown-divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 4px 0;
+}
+
+.dark-theme .stage-dropdown-divider {
+    background: #2c2c2c !important;
+}
+
+/* Четкая фиксация размерной сетки */
+.size-grid-wrapper {
+    overflow-x: auto;
+    margin-top: 6px;
+    margin-bottom: 6px;
+}
+
+.size-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    text-align: center !important;
+}
+
+.size-table th {
+    padding: 8px 4px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+}
+
+.size-table td {
+    padding: 4px !important;
+    border: 1px solid #cbd5e1;
+}
+
+.size-input {
+    width: 100% !important;
+    height: 36px !important;
+    text-align: center !important;
+    padding: 4px 2px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    box-sizing: border-box !important;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+}
+
+.dark-theme .size-table {
+    background: #131313 !important;
+}
+
+.dark-theme .size-table th {
+    background: #1a1a1a !important;
+    border-color: #2c2c2c !important;
+    color: #a3a3a3 !important;
+}
+
+.dark-theme .size-table td {
+    border-color: #2c2c2c !important;
+}
+
+.dark-theme .size-input {
+    background: #111111 !important;
+    border-color: #2c2c2c !important;
+    color: #f5f5f5 !important;
+}
+
+.dark-theme .pos-total-cell {
+    background: #1a1a1a !important;
+    border-color: #2c2c2c !important;
+    color: #58a6ff !important;
+    font-weight: 600 !important;
+}
+
+/* Кнопка выбора файлов в темной теме */
+.dark-theme input[type="file"] {
+    background: transparent !important;
+    border: none !important;
+    color: #888888 !important;
+    font-size: 12px !important;
+}
+
+.dark-theme input[type="file"]::file-selector-button {
+    background: #242424 !important;
+    color: #e5e5e5 !important;
+    border: 1px solid #383838 !important;
+    padding: 6px 12px !important;
+    border-radius: 4px !important;
+    cursor: pointer;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    margin-right: 10px;
+}
+
+.dark-theme input[type="file"]::file-selector-button:hover {
+    background: #2e2e2e !important;
+    color: #ffffff !important;
+}
+
+/* =========================================================
+   ИСПРАВЛЕНИЕ ПОЛЕЙ ПОЗИЦИИ, СТЕППЕРОВ (- 0 +) И ИТОГОВ
+   ========================================================= */
+
+/* 1. Поля в блоке позиций: размер и вид в точности как в Паспорте заказа */
+
+
+/* 2. Убираем убогие стандартные стрелочки браузера у числовых полей */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+}
+input[type=number] {
+    -moz-appearance: textfield !important;
+}
+
+/* 3. Контейнер ячейки размера со степпером (- 0 +) */
+.size-cell-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 36px;
+    box-sizing: border-box;
+}
+
+.size-cell-box .size-input {
+    width: 100% !important;
+    height: 36px !important;
+    text-align: center !important;
+    padding: 0 20px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    border-radius: 4px !important;
+    box-sizing: border-box !important;
+}
+
+/* Кнопки минус и плюс, появляющиеся при наведении */
+.stepper-btn {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    width: 20px;
+    background: #222222;
+    color: #58a6ff;
+    border: 1px solid #333333;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, background 0.15s ease;
+    user-select: none;
+    z-index: 2;
+    padding: 0;
+}
+
+.stepper-btn.minus {
+    left: 2px;
+}
+
+.stepper-btn.plus {
+    right: 2px;
+}
+
+.size-cell-box:hover .stepper-btn {
+    opacity: 1;
+}
+
+.stepper-btn:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #3b82f6 !important;
+}
+
+/* 4. Колонка ИТОГО ПОЗ. - цвет фона строго такой же как у всей таблицы */
+.size-table th:last-child,
+.size-table td:last-child,
+.pos-total-cell,
+[id^="pos-total-display-"] {
+    background: transparent !important;
+    color: #1e40af !important;
+    font-weight: 600 !important;
+}
+
+.dark-theme .size-table th:last-child,
+.dark-theme .size-table td:last-child,
+.dark-theme .pos-total-cell,
+.dark-theme [id^="pos-total-display-"] {
+    background: transparent !important;
+    color: #58a6ff !important;
+    font-weight: 600 !important;
+    border-color: #262626 !important;
+}
+
+/* =========================================================
+   УМНОЕ МЕНЮ ЭТАПОВ И ПОЛЯ "СВОЙ ВАРИАНТ" ПО МЕСТУ
+   ========================================================= */
+
+/* Единый стиль селектов и текстовых полей позиций */
+.position-card select,
+.position-card .form-input-box input[type="text"] {
+    width: 100% !important;
+    height: 38px !important;
+    padding: 8px 12px !important;
+    border-radius: 4px !important;
+    font-size: 14px !important;
+    box-sizing: border-box !important;
+}
+
+/* Контейнер поля "Свой вариант" вместо селекта */
+.custom-replace-box {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.custom-replace-box input[type="text"] {
+    width: 100% !important;
+    height: 38px !important;
+    padding: 8px 30px 8px 12px !important;
+    border-radius: 4px !important;
+    font-size: 14px !important;
+    box-sizing: border-box !important;
+}
+
+.btn-close-custom {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #888888;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-close-custom:hover {
+    color: #ef4444;
+}
+
+/* Умное выпадающее меню этапов (без обрезки) */
+.stage-dropdown-menu {
+    display: none;
+    position: absolute;
+    left: 0;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    min-width: 190px;
+    overflow: hidden;
+}
+
+.stage-dropdown-menu.active {
+    display: block !important;
+}
+
+.dark-theme .stage-dropdown-menu {
+    display: none;
+    background: #181818 !important;
+    border: 1px solid #333333 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7) !important;
+}
+
+.dark-theme .stage-dropdown-menu.active {
+    display: block !important;
+}
+
+/* Кнопка "Удалить позицию" скрыта по умолчанию и никогда не показывается на единственной позиции */
+.pos-delete-btn {
+    display: none !important;
+}
+
+/* Показывается только когда позиций 2 и более */
+.show-delete-btn .pos-delete-btn {
+    display: inline-block !important;
 }

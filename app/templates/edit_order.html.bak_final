@@ -251,36 +251,6 @@
         calculateSchedule();
     }
 
-    const sortList = document.getElementById('sortable-stages');
-    let draggedStage = null;
-    if (sortList) {
-        sortList.addEventListener('dragstart', e => {
-            draggedStage = e.target.closest('li');
-            if (draggedStage) draggedStage.classList.add('dragging');
-        });
-        sortList.addEventListener('dragend', e => {
-            if (draggedStage) {
-                draggedStage.classList.remove('dragging');
-                draggedStage = null;
-                calculateSchedule();
-            }
-        });
-        sortList.addEventListener('dragover', e => {
-            e.preventDefault();
-            const after = getDragAfterElement(sortList, e.clientY);
-            if (e.target.closest('li') !== draggedStage && draggedStage) {
-                if (!after) sortList.appendChild(draggedStage);
-                else sortList.insertBefore(draggedStage, after);
-            }
-        });
-    }
-    function getDragAfterElement(container, y) {
-        return [...container.querySelectorAll('li:not(.dragging)')].reduce((closest, child) => {
-            const box = child.getBoundingClientRect(), offset = y - box.top - box.height / 2;
-            return (offset < 0 && offset > closest.offset) ? { offset: offset, element: child } : closest;
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
-    }
-
     function dateToAbs(dateStr, q) { if(!dateStr) return 0; const p = dateStr.split('-'); return Math.floor(new Date(Date.UTC(p[0], p[1]-1, p[2])).getTime()/86400000) * 4 + parseInt(q) - 1; }
     function absToDateAndQ(absQ) { const dStr = new Date(Math.floor(absQ/4) * 86400000).toISOString().split('T')[0]; return { date: dStr, q: (absQ % 4) + 1 }; }
     function formatD(d) { if(!d) return ''; const p = d.split('-'); return `${p[2]}.${p[1]}.${p[0]}`; }

@@ -177,6 +177,14 @@ def index():
                     q_start = max(d_abs_start, s_abs)
                     q_end = min(d_abs_end, e_abs)
                     occupied_slots += (q_end - q_start + 1)
+        
+        for s in sample_orders:
+            s_abs = date_to_abs_q(s['start_date'], s['start_q'])
+            e_abs = date_to_abs_q(s['end_date'], s['end_q'])
+            if s_abs <= d_abs_end and e_abs >= d_abs_start:
+                q_start = max(d_abs_start, s_abs)
+                q_end = min(d_abs_end, e_abs)
+                occupied_slots += (q_end - q_start + 1)
                 
     load_percent = int(round((occupied_slots / total_available_slots) * 100)) if total_available_slots > 0 else 0
     if load_percent > 100: load_percent = 100
@@ -305,14 +313,14 @@ def order_view(order_id):
 @legacy_bp.route('/delete_order/<int:order_id>', methods=['POST'])
 def delete_order(order_id):
     database.delete_order(order_id)
-    flash('Заказ удален', 'success')
+    flash('Заказ удалён', 'success')
     ref = request.referrer or ''
     if '/orders/' in ref or 'edit_order' in ref:
         return redirect(url_for('orders.orders_list'))
     if '/day/' in ref:
         return redirect(ref)
-    if 'year=' in ref or 'month=' in ref or 'tab=' in ref or ref.endswith('/'):
-        return redirect(ref if ('year=' in ref or 'month=' in ref) else url_for('legacy.index'))
+    if 'tab=' in ref or ref.endswith('/'):
+        return redirect(url_for('legacy.index'))
     return redirect(url_for('orders.orders_list'))
 
 @legacy_bp.route('/download_db')
