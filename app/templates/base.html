@@ -18,7 +18,7 @@
             </div>
 
             <div style="display: flex; align-items: center; gap: 12px;">
-                                <button onclick="toggleDarkMode()" class="btn btn-outline dark-mode-toggle" style="padding: 6px; display: flex; align-items: center; justify-content: center; height: 34px; width: 34px;">
+                <button onclick="toggleDarkMode()" class="btn btn-outline dark-mode-toggle" style="padding: 6px; display: flex; align-items: center; justify-content: center; height: 34px; width: 34px;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
                 </button>
             </div>
@@ -39,8 +39,7 @@
     <footer class="footer">
         <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 15px;">
             <span>Bomonti Production</span>
-            <div style="display: flex; gap: 20px; font-size: 12px;">
-                <a href="#" onclick="openDraftsModal(); return false;" id="footerDraftsLink" style="color: #6b7280; text-decoration: none;">Черновики <span id="draftsBadge" style="display:none; font-weight:700; color:#2563eb;">(0)</span></a>
+            <div style="font-size: 11px;">
                 <a href="#" onclick="openDevModal(); return false;" style="color: #6b7280; text-decoration: none;">Управление БД</a>
             </div>
         </div>
@@ -146,75 +145,5 @@
         function closeModalOutside(event) { if (event.target === document.getElementById('orderModal')) closeOrderModal(); }
         document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeOrderModal(); closeDevModal(); } });
     </script>
-
-    <!-- Модальное окно раздела черновиков -->
-    <div id="draftsModal" class="modal-overlay" onclick="if(event.target===this) closeDraftsModal()">
-        <div class="modal-content" style="max-width: 580px;">
-            <span class="modal-close" onclick="closeDraftsModal()">&times;</span>
-            <h3 style="margin-bottom: 6px; color:#2563eb;">Раздел черновиков</h3>
-            <p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">Незавершённые заказы. Выберите черновик, чтобы продолжить оформление.</p>
-            <div id="draftsListContainer" style="display: flex; flex-direction: column; gap: 10px; max-height: 55vh; overflow-y: auto;"></div>
-        </div>
-    </div>
-
-    <script>
-        async function fetchDraftsCount() {
-            try {
-                const res = await fetch('/api/drafts');
-                const list = await res.json();
-                const badge = document.getElementById('draftsBadge');
-                if (badge) {
-                    if (list.length > 0) {
-                        badge.textContent = '(' + list.length + ')';
-                        badge.style.display = 'inline';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                }
-            } catch(e) {}
-        }
-
-        async function openDraftsModal() {
-            document.getElementById('draftsModal').classList.add('active');
-            const cont = document.getElementById('draftsListContainer');
-            cont.innerHTML = '<div style="text-align:center; padding:20px; color:#6b7280;">Загрузка...</div>';
-            try {
-                const res = await fetch('/api/drafts');
-                const list = await res.json();
-                if (!list.length) {
-                    cont.innerHTML = '<div style="text-align:center; padding:30px; color:#6b7280;">Нет сохранённых черновиков</div>';
-                    return;
-                }
-                cont.innerHTML = list.map(d => `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:rgba(0,0,0,0.02); border:1px solid #e2e8f0; border-radius:6px;">
-                        <div>
-                            <div style="font-weight:700; color:#1e40af; font-size:14px;">${d.title}</div>
-                            <div style="font-size:11px; color:#6b7280; margin-top:2px;">Сохранён: ${d.updated_at ? d.updated_at.slice(0,16) : '-'}</div>
-                        </div>
-                        <div style="display:flex; gap:8px;">
-                            <a href="/add_order?draft_id=${d.id}" class="btn btn-primary" style="padding:4px 12px; font-size:12px;">Продолжить</a>
-                            <button type="button" class="btn btn-danger" style="padding:4px 10px; font-size:12px;" onclick="deleteDraftItem(${d.id})">Удалить</button>
-                        </div>
-                    </div>
-                `).join('');
-            } catch(e) {
-                cont.innerHTML = '<div style="color:#dc2626; text-align:center;">Ошибка загрузки черновиков</div>';
-            }
-        }
-
-        function closeDraftsModal() {
-            document.getElementById('draftsModal').classList.remove('active');
-        }
-
-        async function deleteDraftItem(id) {
-            if (!confirm('Удалить этот черновик?')) return;
-            await fetch('/api/drafts/' + id, { method: 'DELETE' });
-            openDraftsModal();
-            fetchDraftsCount();
-        }
-
-        document.addEventListener('DOMContentLoaded', fetchDraftsCount);
-    </script>
 </body>
-
 </html>

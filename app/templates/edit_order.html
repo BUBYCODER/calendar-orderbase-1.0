@@ -2,7 +2,6 @@
 {% block title %}Редактировать заказ{% endblock %}
 {% block content %}
 
-<!-- ВЕРХ СТРАНИЦЫ (Навигация) -->
 <div style="margin-bottom: 20px;">
     <a href="/orders/{{ order.id }}" class="btn btn-outline" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
         ← Назад
@@ -22,12 +21,12 @@
             
             <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
                 <div class="form-group" style="flex: 1; min-width: 140px;">
-                    <label>Номер заказа *</label>
+                    <label class="field-title">Номер заказа *</label>
                     <input type="number" name="order_number" id="order_number" value="{{ order.order_number or order.id }}" min="1" required oninput="checkOrderNumber(this.value)">
                     <div id="order-number-status" style="font-size: 11px; margin-top: 4px; font-weight:600; color:#dc2626;"></div>
                 </div>
                 <div class="form-group" style="flex: 1; min-width: 160px;">
-                    <label>Клиент / Бренд *</label>
+                    <label class="field-title">Клиент / Бренд *</label>
                     <input type="text" name="client_name" id="client_name" list="clients-datalist" value="{{ order.client_name or order.client }}" required>
                     <datalist id="clients-datalist">
                         {% for c in clients %}
@@ -36,49 +35,52 @@
                     </datalist>
                 </div>
                 <div class="form-group" id="group-name" style="flex: 2; min-width: 240px;">
-                    <label>Название заказа *</label>
+                    <label class="field-title">Название заказа *</label>
                     <input type="text" name="name" id="order-name" value="{{ order.name }}" required>
                 </div>
             </div>
 
             <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
                 <div class="form-group" style="flex: 1; min-width: 150px;">
-                    <label>Дата оформления *</label>
+                    <label class="field-title">Дата оформления *</label>
                     <input type="date" name="creation_date" value="{{ order.created_at[:10] if order.created_at else '' }}" required>
                 </div>
                 <div class="form-group" style="flex: 1; min-width: 160px;">
-                    <label>Общая сумма заказа (₽)</label>
+                    <label class="field-title">Общая сумма заказа (₽)</label>
                     <input type="number" name="amount" min="0" step="100" value="{{ order.amount or 0 }}">
                 </div>
                 <div class="form-group" style="flex: 1; min-width: 140px;">
-                    <label>Тип заказа</label>
+                    <label class="field-title">Тип заказа</label>
                     <select name="order_type" id="order_type">
                         <option value="batch" {% if order.order_type == 'batch' %}selected{% endif %}>Основная партия</option>
                         <option value="sample" {% if order.order_type == 'sample' %}selected{% endif %}>Образец</option>
                     </select>
                 </div>
                 <div class="form-group" style="flex: 1; min-width: 180px;">
-                    <label>Контакты</label>
+                    <label class="field-title">Контакты</label>
                     <input type="text" name="contact" id="contact_input" value="{{ order.contact or '' }}" placeholder="+7 999 000-00-00">
                 </div>
             </div>
 
             <div class="form-group" style="margin-bottom: 0;">
-                <label>Комментарий к заказу</label>
+                <label class="field-title">Комментарий к заказу</label>
                 <input type="text" name="comment" id="order-comment" value="{{ order.comment or '' }}" placeholder="Комментарий..." autocomplete="off">
             </div>
         </div>
 
-        <!-- ПРОИЗВОДСТВЕННЫЙ ГРАФИК (ПРАВКА 7: перенос внутри формы) -->
+        <!-- ПРОИЗВОДСТВЕННЫЙ ГРАФИК (Пункт 7 ТЗ: перенос внутри формы) -->
         <div class="form-block-card">
             <h3 style="margin-bottom: 15px; font-size: 16px; font-weight: 600;">Производственный график</h3>
 
             <div class="form-group" id="group-start-date" style="margin-bottom: 20px;">
-                <label>Дата начала производства *</label>
+                <label class="field-title">Дата начала производства *</label>
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <button type="button" class="btn btn-outline" id="start-picker-btn" onclick="openStartPicker()">Выбрать дату и часть дня</button>
-                    <span id="order-start-display" style="font-weight: 700; color: #2563eb;">
-                        {{ order.start_date|format_date }} (ч.{{ order.start_q }})
+                    <span id="order-start-display" class="start-date-display">
+                        Старт: {{ order.start_date|format_date }} (ч.{{ order.start_q }})
+                    </span>
+                    <span id="order-finish-display" class="start-date-display" style="color: #8b949e !important;">
+                        — Финиш: {{ order.end_date|format_date }} (ч.{{ order.end_q }})
                     </span>
                 </div>
                 <input type="hidden" name="order_start_date" id="global-start-date" value="{{ order.start_date }}">
@@ -86,12 +88,12 @@
             </div>
 
             <div id="batch-ui">
-                <label style="font-weight: 700; display: block; margin-bottom: 10px;">Этапы производства</label>
+                <label class="field-title" style="display: block; margin-bottom: 10px;">Этапы производства</label>
                 <ul id="sortable-stages" style="list-style: none; padding: 0;">
                     {% for stage in stages %}
                         <li class="stage-item-row" data-explicit="true" draggable="true">
-                            <span style="cursor:grab; font-size:18px; color:#9ca3af; padding-right:8px;">⠇⠇</span>
-                            <input type="text" name="stage_type[]" value="{{ stage.stage_type }}" readonly style="font-weight:700; flex:1; min-width:130px; border:none; background:transparent;">
+                            <span style="cursor:grab; font-size:16px; color:#6b7280; padding-right:8px;">:::</span>
+                            <input type="text" name="stage_type[]" value="{{ stage.stage_type }}" readonly style="font-weight:600; flex:1; min-width:130px; border:none; background:transparent;">
                             <select class="duration-select" onchange="calculateSchedule();" style="width: auto;">
                                 <option value="0.25" {% if stage.duration_days == 0.25 %}selected{% endif %}>0.25 дня</option>
                                 <option value="0.5" {% if stage.duration_days == 0.5 %}selected{% endif %}>0.5 дня</option>
@@ -107,7 +109,7 @@
                             </select>
                             <input type="number" class="custom-duration" step="0.25" min="0.25" style="{% if stage.duration_days not in [0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0] and stage.duration_days > 0 %}display:inline-block;{% else %}display:none;{% endif %}" value="{% if stage.duration_days not in [0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0] and stage.duration_days > 0 %}{{ stage.duration_days }}{% endif %}" oninput="calculateSchedule();" placeholder="Дней">
                             <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:12px;" onclick="openIntervalPicker(this)">Интервал</button>
-                            <span class="stage-dates-display" style="font-size: 13px; font-weight:700; margin-left:10px; color:#2563eb;">
+                            <span class="stage-dates-display" style="font-size: 13px; font-weight:600; margin-left:10px; color:#58a6ff;">
                                 {{ stage.start_date|format_date }} (ч.{{ stage.start_q }}) — {{ stage.end_date|format_date }} (ч.{{ stage.end_q }})
                             </span>
                             
@@ -143,14 +145,14 @@
             {% if files %}
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
                 {% for f in files %}
-                <div style="display: flex; align-items: center; gap: 6px; background: #f8fafc; border: 1px solid #d1d5db; padding: 4px 10px; border-radius: 4px; font-size: 12px;">
+                <div style="display: flex; align-items: center; gap: 6px; background: #161b22; border: 1px solid #30363d; padding: 4px 10px; border-radius: 4px; font-size: 12px;">
                     <span>{{ f.file_name }}</span>
                     <button type="button" onclick="deleteExistingFile({{ f.id }})" style="border:none; background:transparent; color:#dc2626; cursor:pointer; font-weight:bold;">✕</button>
                 </div>
                 {% endfor %}
             </div>
             {% endif %}
-            <label style="font-size: 13px; font-weight:600; display:block; margin-bottom:6px;">Загрузить новые файлы:</label>
+            <label class="field-title" style="display:block; margin-bottom:6px;">Загрузить новые файлы:</label>
             <input type="file" name="order_files" multiple accept="image/*,.pdf,.ai,.psd" style="padding: 7px;">
         </div>
         
@@ -220,8 +222,8 @@
         li.dataset.explicit = 'false';
         li.draggable = true;
         li.innerHTML = `
-            <span style="cursor:grab; font-size:18px; color:#9ca3af; padding-right:8px;">⠇⠇</span>
-            <input type="text" name="stage_type[]" value="${stageName}" readonly style="font-weight:700; flex:1; min-width:130px; border:none; background:transparent;">
+            <span style="cursor:grab; font-size:16px; color:#6b7280; padding-right:8px;">:::</span>
+            <input type="text" name="stage_type[]" value="${stageName}" readonly style="font-weight:600; flex:1; min-width:130px; border:none; background:transparent;">
             <select class="duration-select" onchange="calculateSchedule();" style="width:auto; padding:5px; font-size:13px;">
                 <option value="0.25">0.25 дня</option>
                 <option value="0.5">0.5 дня</option>
@@ -237,7 +239,7 @@
             </select>
             <input type="number" class="custom-duration" step="0.25" min="0.25" style="display:none; width:70px; padding:5px;" oninput="calculateSchedule();" placeholder="Дней">
             <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:12px;" onclick="openIntervalPicker(this)">Интервал</button>
-            <span class="stage-dates-display" style="font-size:13px; font-weight:700; margin-left:10px; color:#2563eb;"></span>
+            <span class="stage-dates-display" style="font-size:13px; font-weight:600; margin-left:10px; color:#58a6ff;"></span>
             
             <input type="hidden" name="start_date[]" class="start-date-input">
             <input type="hidden" name="start_q[]" class="start-q-input">
@@ -282,6 +284,7 @@
 
         let currentAbsQ = dateToAbs(startD, startQ);
         let localOccupiedMap = {...dbOccupiedMap};
+        let lastEndObj = null;
 
         document.querySelectorAll('#sortable-stages li').forEach(row => {
             const sel = row.querySelector('.duration-select').value;
@@ -292,6 +295,7 @@
                 let enA = dateToAbs(row.querySelector('.end-date-input').value, row.querySelector('.end-q-input').value);
                 for(let i=stA; i<=enA; i++) localOccupiedMap[i] = true;
                 currentAbsQ = Math.max(currentAbsQ, enA + 1);
+                lastEndObj = absToDateAndQ(enA);
             } else if (duration > 0) {
                 let quartersNeeded = Math.round(duration * 4);
                 let stageStartQ = null;
@@ -309,6 +313,7 @@
                 
                 let startObj = absToDateAndQ(stageStartQ);
                 let endObj = absToDateAndQ(stageEndQ);
+                lastEndObj = endObj;
                 
                 row.querySelector('.start-date-input').value = startObj.date;
                 row.querySelector('.start-q-input').value = startObj.q;
@@ -318,6 +323,12 @@
             }
         });
         localOccupiedMapForPicker = localOccupiedMap;
+
+        const finishEl = document.getElementById('order-finish-display');
+        if (lastEndObj && finishEl) {
+            finishEl.textContent = `— Финиш: ${formatD(lastEndObj.date)}, ${lastEndObj.q}-я часть дня`;
+            finishEl.style.display = 'inline';
+        }
     }
 
     let pickerMode = 'start', pickerRow = null, currentMonth = new Date().getMonth(), currentYear = new Date().getFullYear(), selection = []; 
@@ -404,7 +415,7 @@
 
             document.getElementById('global-start-date').value = selection[0].date; 
             document.getElementById('global-start-q').value = selection[0].q;
-            document.getElementById('order-start-display').textContent = `${formatD(selection[0].date)} (ч.${selection[0].q})`; 
+            document.getElementById('order-start-display').textContent = `Старт: ${formatD(selection[0].date)} (ч.${selection[0].q})`; 
             calculateSchedule();
         } else {
             if (selection.length !== 2) selection.push(selection[0]);
@@ -440,17 +451,4 @@
         loadOccupiedSlots();
     });
 </script>
-
-<style>
-    .form-block-card { background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:20px; }
-    .stage-dropdown-menu { display:none; position:absolute; bottom:100%; left:0; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:50; min-width:190px; margin-bottom:4px; }
-    .stage-dropdown-menu.active { display:block; }
-    .stage-dropdown-item { padding:8px 14px; font-size:13px; cursor:pointer; font-weight:600; color:#334155; }
-    .stage-dropdown-item:hover { background:#f1f5f9; color:#2563eb; }
-    .stage-dropdown-divider { height:1px; background:#e2e8f0; margin:4px 0; }
-    body.dark-theme .form-block-card { background:#1e1e1e; border-color:#333; }
-    body.dark-theme .stage-dropdown-menu { background:#2d2d2d; border-color:#444; }
-    body.dark-theme .stage-dropdown-item { color:#e5e7eb; }
-    body.dark-theme .stage-dropdown-item:hover { background:#374151; color:#60a5fa; }
-</style>
 {% endblock %}

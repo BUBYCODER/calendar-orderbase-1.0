@@ -1,4 +1,10 @@
-{% extends "base.html" %}
+# -*- coding: utf-8 -*-
+import os
+
+# 1. app/templates/add_order.html
+add_path = 'app/templates/add_order.html'
+with open(add_path, 'w', encoding='utf-8') as f:
+    f.write('''{% extends "base.html" %}
 {% block title %}Создать заказ{% endblock %}
 {% block content %}
 
@@ -1086,3 +1092,468 @@
     }
 </script>
 {% endblock %}
+''')
+print("1. app/templates/add_order.html обновлен.")
+
+
+# 2. app/templates/edit_order.html
+edit_path = 'app/templates/edit_order.html'
+with open(edit_path, 'w', encoding='utf-8') as f:
+    f.write('''{% extends "base.html" %}
+{% block title %}Редактировать заказ{% endblock %}
+{% block content %}
+
+<div style="margin-bottom: 20px;">
+    <a href="/orders/{{ order.id }}" class="btn btn-outline" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+        ← Назад
+    </a>
+</div>
+
+<div class="form-container">
+    <div style="margin-bottom: 20px;">
+        <h2>Редактировать заказ #{{ order.order_number or order.id }}</h2>
+    </div>
+
+    <form method="POST" action="/edit_order/{{ order.id }}" id="orderForm" enctype="multipart/form-data" novalidate>
+        
+        <!-- ПАСПОРТ ЗАКАЗА -->
+        <div class="form-block-card">
+            <h3 style="margin-bottom: 15px; font-size: 16px; font-weight: 600;">Паспорт заказа</h3>
+            
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1; min-width: 140px;">
+                    <label class="field-title">Номер заказа *</label>
+                    <input type="number" name="order_number" id="order_number" value="{{ order.order_number or order.id }}" min="1" required oninput="checkOrderNumber(this.value)">
+                    <div id="order-number-status" style="font-size: 11px; margin-top: 4px; font-weight:600; color:#dc2626;"></div>
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 160px;">
+                    <label class="field-title">Клиент / Бренд *</label>
+                    <input type="text" name="client_name" id="client_name" list="clients-datalist" value="{{ order.client_name or order.client }}" required>
+                    <datalist id="clients-datalist">
+                        {% for c in clients %}
+                        <option value="{{ c.name }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="form-group" id="group-name" style="flex: 2; min-width: 240px;">
+                    <label class="field-title">Название заказа *</label>
+                    <input type="text" name="name" id="order-name" value="{{ order.name }}" required>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1; min-width: 150px;">
+                    <label class="field-title">Дата оформления *</label>
+                    <input type="date" name="creation_date" value="{{ order.created_at[:10] if order.created_at else '' }}" required>
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 160px;">
+                    <label class="field-title">Общая сумма заказа (₽)</label>
+                    <input type="number" name="amount" min="0" step="100" value="{{ order.amount or 0 }}">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 140px;">
+                    <label class="field-title">Тип заказа</label>
+                    <select name="order_type" id="order_type">
+                        <option value="batch" {% if order.order_type == 'batch' %}selected{% endif %}>Основная партия</option>
+                        <option value="sample" {% if order.order_type == 'sample' %}selected{% endif %}>Образец</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 180px;">
+                    <label class="field-title">Контакты</label>
+                    <input type="text" name="contact" id="contact_input" value="{{ order.contact or '' }}" placeholder="+7 999 000-00-00">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="field-title">Комментарий к заказу</label>
+                <input type="text" name="comment" id="order-comment" value="{{ order.comment or '' }}" placeholder="Комментарий..." autocomplete="off">
+            </div>
+        </div>
+
+        <!-- ПРОИЗВОДСТВЕННЫЙ ГРАФИК (Пункт 7 ТЗ: перенос внутри формы) -->
+        <div class="form-block-card">
+            <h3 style="margin-bottom: 15px; font-size: 16px; font-weight: 600;">Производственный график</h3>
+
+            <div class="form-group" id="group-start-date" style="margin-bottom: 20px;">
+                <label class="field-title">Дата начала производства *</label>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" id="start-picker-btn" onclick="openStartPicker()">Выбрать дату и часть дня</button>
+                    <span id="order-start-display" class="start-date-display">
+                        Старт: {{ order.start_date|format_date }} (ч.{{ order.start_q }})
+                    </span>
+                    <span id="order-finish-display" class="start-date-display" style="color: #8b949e !important;">
+                        — Финиш: {{ order.end_date|format_date }} (ч.{{ order.end_q }})
+                    </span>
+                </div>
+                <input type="hidden" name="order_start_date" id="global-start-date" value="{{ order.start_date }}">
+                <input type="hidden" name="order_start_q" id="global-start-q" value="{{ order.start_q }}">
+            </div>
+
+            <div id="batch-ui">
+                <label class="field-title" style="display: block; margin-bottom: 10px;">Этапы производства</label>
+                <ul id="sortable-stages" style="list-style: none; padding: 0;">
+                    {% for stage in stages %}
+                        <li class="stage-item-row" data-explicit="true" draggable="true">
+                            <span style="cursor:grab; font-size:16px; color:#6b7280; padding-right:8px;">:::</span>
+                            <input type="text" name="stage_type[]" value="{{ stage.stage_type }}" readonly style="font-weight:600; flex:1; min-width:130px; border:none; background:transparent;">
+                            <select class="duration-select" onchange="calculateSchedule();" style="width: auto;">
+                                <option value="0.25" {% if stage.duration_days == 0.25 %}selected{% endif %}>0.25 дня</option>
+                                <option value="0.5" {% if stage.duration_days == 0.5 %}selected{% endif %}>0.5 дня</option>
+                                <option value="0.75" {% if stage.duration_days == 0.75 %}selected{% endif %}>0.75 дня</option>
+                                <option value="1" {% if stage.duration_days == 1.0 %}selected{% endif %}>1 день</option>
+                                <option value="2" {% if stage.duration_days == 2.0 %}selected{% endif %}>2 дня</option>
+                                <option value="3" {% if stage.duration_days == 3.0 %}selected{% endif %}>3 дня</option>
+                                <option value="4" {% if stage.duration_days == 4.0 %}selected{% endif %}>4 дня</option>
+                                <option value="5" {% if stage.duration_days == 5.0 %}selected{% endif %}>5 дней</option>
+                                <option value="6" {% if stage.duration_days == 6.0 %}selected{% endif %}>6 дней</option>
+                                <option value="7" {% if stage.duration_days == 7.0 %}selected{% endif %}>7 дней</option>
+                                <option value="custom" {% if stage.duration_days not in [0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0] and stage.duration_days > 0 %}selected{% endif %}>Вручную (дни)</option>
+                            </select>
+                            <input type="number" class="custom-duration" step="0.25" min="0.25" style="{% if stage.duration_days not in [0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0] and stage.duration_days > 0 %}display:inline-block;{% else %}display:none;{% endif %}" value="{% if stage.duration_days not in [0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0] and stage.duration_days > 0 %}{{ stage.duration_days }}{% endif %}" oninput="calculateSchedule();" placeholder="Дней">
+                            <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:12px;" onclick="openIntervalPicker(this)">Интервал</button>
+                            <span class="stage-dates-display" style="font-size: 13px; font-weight:600; margin-left:10px; color:#58a6ff;">
+                                {{ stage.start_date|format_date }} (ч.{{ stage.start_q }}) — {{ stage.end_date|format_date }} (ч.{{ stage.end_q }})
+                            </span>
+                            
+                            <input type="hidden" name="start_date[]" class="start-date-input" value="{{ stage.start_date }}">
+                            <input type="hidden" name="start_q[]" class="start-q-input" value="{{ stage.start_q }}">
+                            <input type="hidden" name="end_date[]" class="end-date-input" value="{{ stage.end_date }}">
+                            <input type="hidden" name="end_q[]" class="end-q-input" value="{{ stage.end_q }}">
+                            <button type="button" class="btn btn-danger" style="padding:3px 7px; font-size:12px; margin-left:auto;" onclick="this.closest('li').remove(); calculateSchedule();">✕</button>
+                        </li>
+                    {% endfor %}
+                </ul>
+
+                <div style="position: relative; display: inline-block; margin-top: 15px;">
+                    <button type="button" class="btn btn-outline" onclick="toggleStageMenu(event)" style="font-weight:600;">+ Добавить этап ▾</button>
+                    <div id="stageDropdownMenu" class="stage-dropdown-menu">
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('Раскрой')">Раскрой</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('Пошив')">Пошив</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('DTF')">DTF</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('Шелкография')">Шелкография</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('Вышивка')">Вышивка</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('ВТО и упаковка')">ВТО и упаковка</div>
+                        <div class="stage-dropdown-item" onclick="addStageFromMenu('Отгрузка')">Отгрузка</div>
+                        <div class="stage-dropdown-divider"></div>
+                        <div class="stage-dropdown-item" onclick="promptCustomStage()">+ Свой этап...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ФАЙЛЫ -->
+        <div class="form-block-card">
+            <h3 style="margin-bottom: 12px; font-size: 16px; font-weight: 600;">Прикрепленные файлы</h3>
+            {% if files %}
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                {% for f in files %}
+                <div style="display: flex; align-items: center; gap: 6px; background: #161b22; border: 1px solid #30363d; padding: 4px 10px; border-radius: 4px; font-size: 12px;">
+                    <span>{{ f.file_name }}</span>
+                    <button type="button" onclick="deleteExistingFile({{ f.id }})" style="border:none; background:transparent; color:#dc2626; cursor:pointer; font-weight:bold;">✕</button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <label class="field-title" style="display:block; margin-bottom:6px;">Загрузить новые файлы:</label>
+            <input type="file" name="order_files" multiple accept="image/*,.pdf,.ai,.psd" style="padding: 7px;">
+        </div>
+        
+        <div class="form-actions" style="margin-top:25px;">
+            <button type="submit" class="btn btn-primary" style="padding: 9px 24px;">Сохранить</button>
+            <a href="/orders/{{ order.id }}" class="btn btn-outline" style="padding: 9px 20px;">Отмена</a>
+        </div>
+    </form>
+</div>
+
+<!-- КАЛЕНДАРНЫЙ ПИКЕР -->
+<div id="calendarModal" class="modal-overlay" onclick="if(event.target===this) closePicker()">
+    <div class="modal-content" style="max-width: 600px;">
+        <span class="modal-close" onclick="closePicker()">&times;</span>
+        <h3 id="pickerTitle">Выберите дату</h3>
+        <div style="display:flex; justify-content:space-between; margin:15px 0;">
+            <button type="button" class="btn btn-outline" onclick="changeMonth(-1)">←</button>
+            <strong id="pickerMonthYear"></strong>
+            <button type="button" class="btn btn-outline" onclick="changeMonth(1)">→</button>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-weight:bold; margin-bottom:5px;">
+            <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+        </div>
+        <div id="pickerGrid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;"></div>
+        <div style="margin-top:15px; text-align:right;">
+            <button type="button" class="btn btn-primary" onclick="applyPicker()">Применить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function checkOrderNumber(val) {
+        const statusEl = document.getElementById('order-number-status');
+        if (!val || val <= 0) { statusEl.textContent = ''; return; }
+        const res = await fetch(`/api/check_order_number?number=${val}&exclude_id={{ order.id }}`);
+        const data = await res.json();
+        if (data.taken) {
+            statusEl.textContent = 'Номер уже занят!';
+        } else {
+            statusEl.textContent = '';
+        }
+    }
+
+    function toggleStageMenu(e) {
+        e.stopPropagation();
+        document.getElementById('stageDropdownMenu').classList.toggle('active');
+    }
+    document.addEventListener('click', () => {
+        const menu = document.getElementById('stageDropdownMenu');
+        if (menu) menu.classList.remove('active');
+    });
+
+    function addStageFromMenu(stageName) {
+        document.getElementById('stageDropdownMenu').classList.remove('active');
+        addStageRow(stageName);
+    }
+    function promptCustomStage() {
+        document.getElementById('stageDropdownMenu').classList.remove('active');
+        const name = prompt('Введите название этапа:');
+        if (name && name.trim()) addStageRow(name.trim());
+    }
+
+    function addStageRow(stageName) {
+        const list = document.getElementById('sortable-stages');
+        const li = document.createElement('li');
+        li.className = 'stage-item-row';
+        li.dataset.explicit = 'false';
+        li.draggable = true;
+        li.innerHTML = `
+            <span style="cursor:grab; font-size:16px; color:#6b7280; padding-right:8px;">:::</span>
+            <input type="text" name="stage_type[]" value="${stageName}" readonly style="font-weight:600; flex:1; min-width:130px; border:none; background:transparent;">
+            <select class="duration-select" onchange="calculateSchedule();" style="width:auto; padding:5px; font-size:13px;">
+                <option value="0.25">0.25 дня</option>
+                <option value="0.5">0.5 дня</option>
+                <option value="0.75">0.75 дня</option>
+                <option value="1" selected>1 день</option>
+                <option value="2">2 дня</option>
+                <option value="3">3 дня</option>
+                <option value="4">4 дня</option>
+                <option value="5">5 дней</option>
+                <option value="6">6 дней</option>
+                <option value="7">7 дней</option>
+                <option value="custom">Вручную (дни)</option>
+            </select>
+            <input type="number" class="custom-duration" step="0.25" min="0.25" style="display:none; width:70px; padding:5px;" oninput="calculateSchedule();" placeholder="Дней">
+            <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:12px;" onclick="openIntervalPicker(this)">Интервал</button>
+            <span class="stage-dates-display" style="font-size:13px; font-weight:600; margin-left:10px; color:#58a6ff;"></span>
+            
+            <input type="hidden" name="start_date[]" class="start-date-input">
+            <input type="hidden" name="start_q[]" class="start-q-input">
+            <input type="hidden" name="end_date[]" class="end-date-input">
+            <input type="hidden" name="end_q[]" class="end-q-input">
+            <button type="button" class="btn btn-danger" style="padding:3px 7px; font-size:12px; margin-left:auto;" onclick="this.closest('li').remove(); calculateSchedule();">✕</button>
+        `;
+        list.appendChild(li);
+        calculateSchedule();
+    }
+
+    function dateToAbs(dateStr, q) { if(!dateStr) return 0; const p = dateStr.split('-'); return Math.floor(new Date(Date.UTC(p[0], p[1]-1, p[2])).getTime()/86400000) * 4 + parseInt(q) - 1; }
+    function absToDateAndQ(absQ) { const dStr = new Date(Math.floor(absQ/4) * 86400000).toISOString().split('T')[0]; return { date: dStr, q: (absQ % 4) + 1 }; }
+    function formatD(d) { if(!d) return ''; const p = d.split('-'); return `${p[2]}.${p[1]}.${p[0]}`; }
+
+    let dbOccupiedMap = {};
+    let localOccupiedMapForPicker = {};
+
+    async function loadOccupiedSlots() {
+        const type = document.getElementById('order_type').value;
+        const res = await fetch(`/api/occupied?order_type=${type}&exclude_id={{ order.id }}`);
+        const slots = await res.json();
+        dbOccupiedMap = {};
+        slots.forEach(s => {
+            let start = dateToAbs(s.start_date, s.start_q);
+            let end = dateToAbs(s.end_date, s.end_q);
+            for (let q = start; q <= end; q++) dbOccupiedMap[q] = true;
+        });
+        calculateSchedule();
+    }
+
+    function calculateSchedule() {
+        let startD = document.getElementById('global-start-date').value;
+        let startQ = document.getElementById('global-start-q').value;
+
+        document.querySelectorAll('#sortable-stages li').forEach(row => {
+            const sel = row.querySelector('.duration-select').value;
+            row.querySelector('.custom-duration').style.display = (sel === 'custom') ? 'inline-block' : 'none';
+        });
+
+        if (!startD) return;
+
+        let currentAbsQ = dateToAbs(startD, startQ);
+        let localOccupiedMap = {...dbOccupiedMap};
+        let lastEndObj = null;
+
+        document.querySelectorAll('#sortable-stages li').forEach(row => {
+            const sel = row.querySelector('.duration-select').value;
+            let duration = (sel === 'custom') ? parseFloat(row.querySelector('.custom-duration').value || 0) : parseFloat(sel || 0);
+            
+            if (row.dataset.explicit === 'true' && row.querySelector('.start-date-input').value) {
+                let stA = dateToAbs(row.querySelector('.start-date-input').value, row.querySelector('.start-q-input').value);
+                let enA = dateToAbs(row.querySelector('.end-date-input').value, row.querySelector('.end-q-input').value);
+                for(let i=stA; i<=enA; i++) localOccupiedMap[i] = true;
+                currentAbsQ = Math.max(currentAbsQ, enA + 1);
+                lastEndObj = absToDateAndQ(enA);
+            } else if (duration > 0) {
+                let quartersNeeded = Math.round(duration * 4);
+                let stageStartQ = null;
+                let stageEndQ = null;
+                
+                while (quartersNeeded > 0) {
+                    if (!localOccupiedMap[currentAbsQ]) {
+                        if (stageStartQ === null) stageStartQ = currentAbsQ;
+                        stageEndQ = currentAbsQ;
+                        quartersNeeded--;
+                        localOccupiedMap[currentAbsQ] = true;
+                    }
+                    currentAbsQ++;
+                }
+                
+                let startObj = absToDateAndQ(stageStartQ);
+                let endObj = absToDateAndQ(stageEndQ);
+                lastEndObj = endObj;
+                
+                row.querySelector('.start-date-input').value = startObj.date;
+                row.querySelector('.start-q-input').value = startObj.q;
+                row.querySelector('.end-date-input').value = endObj.date;
+                row.querySelector('.end-q-input').value = endObj.q;
+                row.querySelector('.stage-dates-display').textContent = `${formatD(startObj.date)} (ч.${startObj.q}) — ${formatD(endObj.date)} (ч.${endObj.q})`;
+            }
+        });
+        localOccupiedMapForPicker = localOccupiedMap;
+
+        const finishEl = document.getElementById('order-finish-display');
+        if (lastEndObj && finishEl) {
+            finishEl.textContent = `— Финиш: ${formatD(lastEndObj.date)}, ${lastEndObj.q}-я часть дня`;
+            finishEl.style.display = 'inline';
+        }
+    }
+
+    let pickerMode = 'start', pickerRow = null, currentMonth = new Date().getMonth(), currentYear = new Date().getFullYear(), selection = []; 
+    function openStartPicker() {
+        pickerMode = 'start'; selection = [];
+        const val = document.getElementById('global-start-date').value;
+        if (val) { currentYear = parseInt(val.split('-')[0]); currentMonth = parseInt(val.split('-')[1]) - 1; }
+        document.getElementById('pickerTitle').textContent = 'Начало производства'; 
+        document.getElementById('calendarModal').classList.add('active'); 
+        renderPicker();
+    }
+    function openIntervalPicker(btn) {
+        pickerMode = 'interval'; pickerRow = btn.closest('li'); selection = [];
+        const val = pickerRow.querySelector('.start-date-input').value;
+        if (val) { currentYear = parseInt(val.split('-')[0]); currentMonth = parseInt(val.split('-')[1]) - 1; }
+        document.getElementById('pickerTitle').textContent = 'Интервал этапа';
+        document.getElementById('calendarModal').classList.add('active'); 
+        renderPicker();
+    }
+    function closePicker() { document.getElementById('calendarModal').classList.remove('active'); }
+    function changeMonth(delta) { currentMonth += delta; if (currentMonth < 0) { currentMonth = 11; currentYear--; } if (currentMonth > 11) { currentMonth = 0; currentYear++; } renderPicker(); }
+
+    function renderPicker() {
+        document.getElementById('pickerMonthYear').textContent = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'][currentMonth] + ' ' + currentYear;
+        const container = document.getElementById('pickerGrid'), firstDay = new Date(currentYear, currentMonth, 1).getDay(), daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        let html = ''; for (let i = 0; i < ((firstDay === 0) ? 6 : firstDay - 1); i++) html += '<div></div>';
+        
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            let qHtml = '';
+            for (let q = 1; q <= 4; q++) {
+                const cAbs = dateToAbs(dateStr, q);
+                let isOcc = (pickerMode === 'start') ? dbOccupiedMap[cAbs] : localOccupiedMapForPicker[cAbs];
+                let isSelected = (selection.length===1) ? (cAbs===dateToAbs(selection[0].date, selection[0].q)) : (selection.length===2 && cAbs>=Math.min(dateToAbs(selection[0].date, selection[0].q), dateToAbs(selection[1].date, selection[1].q)) && cAbs<=Math.max(dateToAbs(selection[0].date, selection[0].q), dateToAbs(selection[1].date, selection[1].q)));
+                qHtml += `<div class="q-block ${isOcc?'occupied':''} ${isSelected?'selected':''}" onclick="onQClick('${dateStr}', ${q}, ${isOcc})"></div>`;
+            }
+            html += `<div class="day-cell-picker"><div style="font-size:12px; margin-bottom:2px; text-align:center;">${d}</div><div class="q-grid">${qHtml}</div></div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function onQClick(dateStr, q, isOcc) {
+        if (isOcc) return; 
+        if (pickerMode === 'start') selection = [{date: dateStr, q: q}];
+        else {
+            if (selection.length === 0 || selection.length === 2) selection = [{date: dateStr, q: q}];
+            else {
+                const s0Abs = dateToAbs(selection[0].date, selection[0].q), s1Abs = dateToAbs(dateStr, q);
+                for(let a = Math.min(s0Abs, s1Abs); a <= Math.max(s0Abs, s1Abs); a++) {
+                    if (localOccupiedMapForPicker[a]) return alert("Пересечение с занятым временем!");
+                }
+                selection = (s1Abs < s0Abs) ? [{date: dateStr, q: q}, selection[0]] : [selection[0], {date: dateStr, q: q}];
+            }
+        }
+        renderPicker();
+    }
+
+    function applyPicker() {
+        if (selection.length === 0) return alert('Выберите время');
+        if (pickerMode === 'start') {
+            let oldStartD = document.getElementById('global-start-date').value;
+            let oldStartQ = document.getElementById('global-start-q').value;
+            let oldStartAbs = (oldStartD && oldStartQ) ? dateToAbs(oldStartD, oldStartQ) : null;
+            let newStartAbs = dateToAbs(selection[0].date, selection[0].q);
+
+            if (oldStartAbs !== null) {
+                let delta = newStartAbs - oldStartAbs;
+                document.querySelectorAll('#sortable-stages li').forEach(row => {
+                    let stD = row.querySelector('.start-date-input').value;
+                    let stQ = row.querySelector('.start-q-input').value;
+                    let enD = row.querySelector('.end-date-input').value;
+                    let enQ = row.querySelector('.end-q-input').value;
+                    if (stD && enD) {
+                        let nSt = absToDateAndQ(dateToAbs(stD, stQ) + delta);
+                        let nEn = absToDateAndQ(dateToAbs(enD, enQ) + delta);
+                        row.querySelector('.start-date-input').value = nSt.date;
+                        row.querySelector('.start-q-input').value = nSt.q;
+                        row.querySelector('.end-date-input').value = nEn.date;
+                        row.querySelector('.end-q-input').value = nEn.q;
+                        row.querySelector('.stage-dates-display').textContent = `${formatD(nSt.date)} (ч.${nSt.q}) — ${formatD(nEn.date)} (ч.${nEn.q})`;
+                    }
+                });
+            }
+
+            document.getElementById('global-start-date').value = selection[0].date; 
+            document.getElementById('global-start-q').value = selection[0].q;
+            document.getElementById('order-start-display').textContent = `Старт: ${formatD(selection[0].date)} (ч.${selection[0].q})`; 
+            calculateSchedule();
+        } else {
+            if (selection.length !== 2) selection.push(selection[0]);
+            const row = pickerRow, st = selection[0], en = selection[1];
+            row.dataset.explicit = 'true'; 
+            row.querySelector('.duration-select').value = ''; 
+            row.querySelector('.custom-duration').style.display = 'none';
+            row.querySelector('.start-date-input').value = st.date; 
+            row.querySelector('.start-q-input').value = st.q;
+            row.querySelector('.end-date-input').value = en.date; 
+            row.querySelector('.end-q-input').value = en.q;
+            row.querySelector('.stage-dates-display').textContent = `${formatD(st.date)} (ч.${st.q}) — ${formatD(en.date)} (ч.${en.q})`; 
+            calculateSchedule();
+        }
+        closePicker();
+    }
+
+    function deleteExistingFile(fileId) {
+        if (!confirm('Удалить этот файл из заказа?')) return;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/delete_file/${fileId}`;
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'order_id';
+        input.value = '{{ order.id }}';
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadOccupiedSlots();
+    });
+</script>
+{% endblock %}
+''')
+print("2. app/templates/edit_order.html обновлен.")
+
+print("\nВСЕ 3 ЧАСТИ УСПЕШНО ЗАВЕРШЕНЫ!")

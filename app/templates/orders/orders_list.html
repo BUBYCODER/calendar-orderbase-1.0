@@ -6,11 +6,21 @@
     <a href="/add_order" class="btn btn-primary">+ Заказ</a>
 </div>
 
+<!-- Пункт 3 и 6 ТЗ: вкладки с чистыми цифрами-счётчиками без "шт/ед" -->
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 12px;">
-    <div style="display: flex; gap: 6px; align-items: center;">
-        <a href="?filter=all&search={{ search }}" class="tab-btn {% if filter_type == 'all' %}active{% endif %}" style="padding: 5px 14px; font-size: 13px;">Все</a>
-        <a href="?filter=batch&search={{ search }}" class="tab-btn {% if filter_type == 'batch' %}active{% endif %}" style="padding: 5px 14px; font-size: 13px;">Основные партии</a>
-        <a href="?filter=sample&search={{ search }}" class="tab-btn {% if filter_type == 'sample' %}active{% endif %}" style="padding: 5px 14px; font-size: 13px;">Образцы</a>
+    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+        <a href="?filter=all&search={{ search }}" class="tab-btn {% if filter_type == 'all' %}active{% endif %}">
+            Все <span class="tab-badge">{{ counts.all }}</span>
+        </a>
+        <a href="?filter=batch&search={{ search }}" class="tab-btn {% if filter_type == 'batch' %}active{% endif %}">
+            Основные партии <span class="tab-badge">{{ counts.batch }}</span>
+        </a>
+        <a href="?filter=sample&search={{ search }}" class="tab-btn {% if filter_type == 'sample' %}active{% endif %}">
+            Образцы <span class="tab-badge">{{ counts.sample }}</span>
+        </a>
+        <a href="?filter=drafts&search={{ search }}" class="tab-btn {% if filter_type == 'drafts' %}active{% endif %}" style="border-color: #f59e0b; color: #f59e0b;">
+            Черновики <span class="tab-badge" style="background: #f59e0b; color: #000;">{{ counts.drafts }}</span>
+        </a>
     </div>
 
     <form method="GET" action="/orders" style="display: flex; gap: 8px; flex: 1; max-width: 420px; min-width: 260px;">
@@ -25,6 +35,43 @@
     </form>
 </div>
 
+{% if filter_type == 'drafts' %}
+<!-- Таблица черновиков (Пункт 3 ТЗ: черновики отдельно от заказов) -->
+<div class="table-container">
+    <table class="orders-table">
+        <thead>
+            <tr>
+                <th>Черновик</th>
+                <th>Дата сохранения</th>
+                <th style="width: 170px;">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in drafts %}
+            <tr>
+                <td style="font-weight: 600; color: #f59e0b;">{{ d.title }}</td>
+                <td style="color: #6b7280; font-size: 13px;">{{ d.updated_at[:16] if d.updated_at else '-' }}</td>
+                <td>
+                    <div style="display: flex; gap: 8px;">
+                        <a href="/add_order?draft_id={{ d.id }}" class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;">Продолжить</a>
+                        <form action="/delete_draft/{{ d.id }}" method="POST" style="display: inline;" onsubmit="return confirm('Удалить этот черновик?');">
+                            <button type="submit" class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;">Удалить</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" style="padding: 30px; text-align: center; color: #6b7280;">
+                    Сохранённых черновиков нет
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<!-- Таблица заказов -->
 <div class="table-container">
     <table class="orders-table">
         <thead>
@@ -65,8 +112,23 @@
         </tbody>
     </table>
 </div>
+{% endif %}
 
 <style>
+    .tab-badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        margin-left: 4px;
+        padding: 0 5px;
+        border-radius: 8px;
+        background: rgba(37, 99, 235, 0.15);
+        color: inherit;
+    }
+    .tab-btn.active .tab-badge {
+        background: rgba(255, 255, 255, 0.25);
+        color: #fff;
+    }
     .table-container { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow-x: auto; margin-bottom: 30px; }
     .orders-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
     .orders-table th { padding: 14px 16px; background: #f9fafb; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151; white-space: nowrap; }
@@ -75,10 +137,10 @@
     .orders-table td { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; }
     .order-row { transition: background-color 0.15s ease; cursor: pointer; }
     .order-row:hover { background-color: #f8fafc; }
-    body.dark-theme .table-container { background: #1e1e1e; box-shadow: none; border: 1px solid #333; }
-    body.dark-theme .orders-table th { background: #2d2d2d; border-bottom: 2px solid #444; color: #d1d5db; }
-    body.dark-theme .orders-table td { border-bottom: 1px solid #444; }
-    body.dark-theme .order-row:hover { background-color: #2d2d2d; }
+    body.dark-theme .table-container { background: #111822; box-shadow: none; border: 1px solid #1f2937; }
+    body.dark-theme .orders-table th { background: #0b0f14; border-bottom: 2px solid #1f2937; color: #9ca3af; }
+    body.dark-theme .orders-table td { border-bottom: 1px solid #1f2937; }
+    body.dark-theme .order-row:hover { background-color: #162032; }
     body.dark-theme .orders-table td[style*="color: #6b7280"] { color: #9ca3af !important; }
 </style>
 {% endblock %}

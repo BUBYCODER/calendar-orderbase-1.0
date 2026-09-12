@@ -13,64 +13,30 @@ STAGE_LIST = [
 ]
 
 def safe_int(val, default=0):
-    if val is None:
-        return default
+    if val is None: return default
     try:
         clean = str(val).strip()
         return int(clean) if clean else default
-    except:
-        return default
+    except: return default
 
 def safe_float(val, default=0.0):
-    if val is None:
-        return default
+    if val is None: return default
     try:
         clean = str(val).strip().replace(' ', '').replace(',', '.')
         return float(clean) if clean else default
-    except:
-        return default
+    except: return default
 
 def safe_date_obj(d_val, fallback=None):
-    if not d_val:
-        return fallback or date.today()
+    if not d_val: return fallback or date.today()
     try:
         clean = str(d_val).strip()[:10]
         return date.fromisoformat(clean)
-    except:
-        return fallback or date.today()
+    except: return fallback or date.today()
 
 def parse_positions_from_form(req_form):
     pos_indexes = req_form.getlist('pos_index[]')
     positions = []
     
-    if not pos_indexes:
-        product = req_form.get('product_name_single', '').strip()
-        if product:
-            sizes = {
-                'size_3xs': safe_int(req_form.get('size_3xs_single')),
-                'size_2xs': safe_int(req_form.get('size_2xs_single')),
-                'size_xs': safe_int(req_form.get('size_xs_single')),
-                'size_s': safe_int(req_form.get('size_s_single')),
-                'size_m': safe_int(req_form.get('size_m_single')),
-                'size_l': safe_int(req_form.get('size_l_single')),
-                'size_xl': safe_int(req_form.get('size_xl_single')),
-                'size_2xl': safe_int(req_form.get('size_2xl_single')),
-                'size_3xl': safe_int(req_form.get('size_3xl_single')),
-                'size_onesize': safe_int(req_form.get('size_onesize_single')),
-            }
-            total_qty = sum(sizes.values())
-            positions.append({
-                'product_name': product,
-                'pattern_name': req_form.get('pattern_name_single', '').strip(),
-                'fabric_name': req_form.get('fabric_name_single', '').strip(),
-                'fabric_density': req_form.get('fabric_density_single', '').strip(),
-                'fabric_color': req_form.get('fabric_color_single', '').strip(),
-                **sizes,
-                'total_quantity': total_qty,
-                'embellishments': []
-            })
-        return positions
-
     for p_idx in pos_indexes:
         p_prod = req_form.get(f'product_{p_idx}', '').strip()
         p_pattern = req_form.get(f'pattern_{p_idx}', '').strip()
@@ -87,9 +53,8 @@ def parse_positions_from_form(req_form):
         s_xl = safe_int(req_form.get(f'size_xl_{p_idx}'))
         s_2xl = safe_int(req_form.get(f'size_2xl_{p_idx}'))
         s_3xl = safe_int(req_form.get(f'size_3xl_{p_idx}'))
-        s_onesize = safe_int(req_form.get(f'size_onesize_{p_idx}'))
 
-        pos_total = s_3xs + s_2xs + s_xs + s_s + s_m + s_l + s_xl + s_2xl + s_3xl + s_onesize
+        pos_total = s_3xs + s_2xs + s_xs + s_s + s_m + s_l + s_xl + s_2xl + s_3xl
 
         emb_types = req_form.getlist(f'emb_type_{p_idx}[]')
         emb_formats = req_form.getlist(f'emb_format_{p_idx}[]')
@@ -102,23 +67,11 @@ def parse_positions_from_form(req_form):
                 emb_list.append({'type': emb_types[e_i].strip(), 'format': ef, 'quantity': eq})
 
         positions.append({
-            'product_name': p_prod,
-            'pattern_name': p_pattern,
-            'fabric_name': p_fabric,
-            'fabric_density': p_density,
-            'fabric_color': p_color,
-            'size_3xs': s_3xs,
-            'size_2xs': s_2xs,
-            'size_xs': s_xs,
-            'size_s': s_s,
-            'size_m': s_m,
-            'size_l': s_l,
-            'size_xl': s_xl,
-            'size_2xl': s_2xl,
-            'size_3xl': s_3xl,
-            'size_onesize': s_onesize,
-            'total_quantity': pos_total,
-            'embellishments': emb_list
+            'pos_index': p_idx, 'product_name': p_prod, 'pattern_name': p_pattern,
+            'fabric_name': p_fabric, 'fabric_density': p_density, 'fabric_color': p_color,
+            'size_3xs': s_3xs, 'size_2xs': s_2xs, 'size_xs': s_xs, 'size_s': s_s,
+            'size_m': s_m, 'size_l': s_l, 'size_xl': s_xl, 'size_2xl': s_2xl, 'size_3xl': s_3xl,
+            'total_quantity': pos_total, 'embellishments': emb_list
         })
     return positions
 
@@ -128,17 +81,20 @@ def orders_list():
     sort_order = request.args.get('sort_order', 'desc')
     search = request.args.get('search', '').strip()
     filter_type = request.args.get('filter', 'all')
+    counts = database.get_orders_counts()
     
-    orders = database.get_orders_list(sort_by, sort_order, search=search, filter_type=filter_type)
+    if filter_type == 'drafts':
+        drafts = database.get_drafts_list(search=search)
+        orders = []
+    else:
+        orders = database.get_orders_list(sort_by, sort_order, search=search, filter_type=filter_type)
+        drafts = []
+        
     next_sort_order = 'asc' if sort_order == 'desc' else 'desc'
-    
     return render_template('orders/orders_list.html', 
-                           orders=orders, 
-                           sort_by=sort_by, 
-                           sort_order=sort_order,
-                           next_sort_order=next_sort_order,
-                           search=search,
-                           filter_type=filter_type)
+                           orders=orders, drafts=drafts, counts=counts,
+                           sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order,
+                           search=search, filter_type=filter_type)
 
 @orders_bp.route('/orders/<int:order_id>')
 def order_detail(order_id):
@@ -154,25 +110,19 @@ def order_detail(order_id):
     
     def safe_date_to_abs_q(d_str, q):
         if not d_str: return 0
-        try:
-            return date.fromisoformat(str(d_str)[:10]).toordinal() * 4 + safe_int(q, default=1) - 1
-        except:
-            return 0
+        try: return date.fromisoformat(str(d_str)[:10]).toordinal() * 4 + safe_int(q, default=1) - 1
+        except: return 0
             
     for s in stages:
         s_start = s.get('start_date') or s.get('start')
         s_end = s.get('end_date') or s.get('end')
-        s_sq = s.get('start_q', 1)
-        s_eq = s.get('end_q', 1)
-        s_abs = safe_date_to_abs_q(s_start, s_sq)
-        e_abs = safe_date_to_abs_q(s_end, s_eq)
+        s_abs = safe_date_to_abs_q(s_start, s.get('start_q', 1))
+        e_abs = safe_date_to_abs_q(s_end, s.get('end_q', 1))
         s['duration_days'] = max(0.25, (e_abs - s_abs + 1) / 4.0) if (s_start and s_end) else 0
         
-    s_start_ord = order.get('start_date')
-    s_end_ord = order.get('end_date')
-    s_total = safe_date_to_abs_q(s_start_ord, order.get('start_q', 1))
-    e_total = safe_date_to_abs_q(s_end_ord, order.get('end_q', 1))
-    total_duration = max(0.25, (e_total - s_total + 1) / 4.0) if (s_start_ord and s_end_ord) else 0
+    s_total = safe_date_to_abs_q(order.get('start_date'), order.get('start_q', 1))
+    e_total = safe_date_to_abs_q(order.get('end_date'), order.get('end_q', 1))
+    total_duration = max(0.25, (e_total - s_total + 1) / 4.0) if (order.get('start_date') and order.get('end_date')) else 0
     
     back_url = request.args.get('from', 'orders')
     return render_template('orders/order_detail.html', 
@@ -201,7 +151,6 @@ def add_order_view():
             contact = request.form.get('contact', '').strip()
             amount = safe_float(request.form.get('amount'))
             comment = request.form.get('comment', '').strip()
-
             o_start = request.form.get('order_start_date') or date.today().isoformat()
             o_start_q = safe_int(request.form.get('order_start_q'), default=1)
 
@@ -218,9 +167,8 @@ def add_order_view():
                 s_end_q = safe_int(request.form.get('sample_end_q'), default=o_start_q)
                 s_stages = request.form.getlist('sample_stages[]')
                 for st in s_stages:
-                    st = st.strip()
-                    if st:
-                        stages.append({'type': st, 'start': o_start, 'start_q': o_start_q, 'end': s_end, 'end_q': s_end_q})
+                    if st.strip():
+                        stages.append({'type': st.strip(), 'start': o_start, 'start_q': o_start_q, 'end': s_end, 'end_q': s_end_q})
                 if not stages:
                     stages = [{'type': 'Образец', 'start': o_start, 'start_q': o_start_q, 'end': s_end, 'end_q': s_end_q}]
                 
@@ -260,22 +208,22 @@ def add_order_view():
                     amount=amount, created_at=creation_date, positions=positions
                 )
 
-            # Сохранение файлов
+            # Сохранение файлов к позициям (Пункт 10 ТЗ)
             try:
                 upload_folder = current_app.config.get('UPLOAD_FOLDER', 'app/static/uploads')
                 os.makedirs(upload_folder, exist_ok=True)
-                files = request.files.getlist('order_files')
-                for file in files:
-                    if file and file.filename:
-                        orig_name = file.filename
-                        ext = os.path.splitext(orig_name)[1]
-                        disk_name = f"{order_id}_{uuid.uuid4().hex[:8]}{ext}"
-                        file.save(os.path.join(upload_folder, disk_name))
-                        database.add_order_file(order_id, orig_name, f"uploads/{disk_name}")
-            except:
-                pass
+                for p in positions:
+                    p_idx = p.get('pos_index', 1)
+                    p_files = request.files.getlist(f'pos_files_{p_idx}')
+                    for file in p_files:
+                        if file and file.filename:
+                            orig_name = file.filename
+                            ext = os.path.splitext(orig_name)[1]
+                            disk_name = f"{order_id}_{uuid.uuid4().hex[:8]}{ext}"
+                            file.save(os.path.join(upload_folder, disk_name))
+                            database.add_order_file(order_id, orig_name, f"uploads/{disk_name}", position_index=int(p_idx))
+            except: pass
 
-            # Удаление черновика если заказ создан
             loaded_draft_id = safe_int(request.form.get('loaded_draft_id'), default=None)
             if loaded_draft_id:
                 try: database.delete_draft(loaded_draft_id)
@@ -288,134 +236,18 @@ def add_order_view():
             flash(f'Ошибка при создании заказа: {str(e)}', 'error')
             return redirect(url_for('orders.add_order_view'))
 
-    clients = dict_model.get_all_clients()
     next_num = database.get_next_available_order_number()
     today_str = date.today().isoformat()
     return render_template('add_order.html', 
                            stage_list=STAGE_LIST, 
-                           clients=clients, 
                            next_num=next_num, 
                            today_str=today_str)
 
-@orders_bp.route('/edit_order/<int:order_id>', methods=['GET', 'POST'])
-def edit_order_view(order_id):
-    data = database.get_order_full_details(order_id)
-    if not data:
-        flash('Заказ не найден', 'error')
-        return redirect(url_for('orders.orders_list'))
-    order, stages, files, items = data
-
-    if request.method == 'POST':
-        try:
-            order_number = safe_int(request.form.get('order_number'), default=order.get('order_number'))
-            creation_date = request.form.get('creation_date') or order['created_at']
-            order_type = request.form.get('order_type', 'batch')
-            name = request.form.get('name', '').strip()
-
-            if order_number and database.check_order_number_taken(order_number, exclude_id=order_id):
-                flash(f'Номер #{order_number} уже занят другим заказом!', 'error')
-                return redirect(url_for('orders.edit_order_view', order_id=order_id))
-
-            client_name = request.form.get('client_name', '').strip() or request.form.get('client_text', order['client']).strip()
-            client_id = database.get_or_create_client(client_name) if client_name else order.get('client_id')
-
-            contact_type = request.form.get('contact_type', 'Телефон')
-            contact = request.form.get('contact', '').strip()
-            amount = safe_float(request.form.get('amount'), default=order.get('amount', 0.0))
-            comment = request.form.get('comment', '').strip()
-            o_start = request.form.get('order_start_date') or order['start_date']
-            o_start_q = safe_int(request.form.get('order_start_q'), default=order.get('start_q', 1))
-
-            positions = parse_positions_from_form(request.form)
-            quantity = sum(p['total_quantity'] for p in positions) if positions else safe_int(request.form.get('quantity'), default=order['quantity'])
-
-            new_stages = []
-            if order_type == 'sample':
-                s_end = request.form.get('sample_end_date') or o_start
-                s_end_q = safe_int(request.form.get('sample_end_q'), default=o_start_q)
-                s_stages = request.form.getlist('sample_stages[]')
-                for st in s_stages:
-                    if st.strip():
-                        new_stages.append({'type': st.strip(), 'start': o_start, 'start_q': o_start_q, 'end': s_end, 'end_q': s_end_q})
-                if not new_stages:
-                    new_stages = [{'type': 'Образец', 'start': o_start, 'start_q': o_start_q, 'end': s_end, 'end_q': s_end_q}]
-                
-                database.update_order_full(
-                    order_id, name, client_name, contact, comment, order_type, quantity, o_start, o_start_q, s_end, s_end_q, new_stages,
-                    order_number=order_number, client_id=client_id, contact_type=contact_type,
-                    amount=amount, created_at=creation_date, positions=positions
-                )
-            else:
-                types = request.form.getlist('stage_type[]')
-                starts = request.form.getlist('start_date[]')
-                start_qs = request.form.getlist('start_q[]')
-                ends = request.form.getlist('end_date[]')
-                end_qs = request.form.getlist('end_q[]')
-                
-                for i in range(len(types)):
-                    t = types[i].strip()
-                    if not t: continue
-                    st = starts[i] if i < len(starts) and starts[i] else o_start
-                    st_q = safe_int(start_qs[i] if i < len(start_qs) else 1, default=1)
-                    en = ends[i] if i < len(ends) and ends[i] else st
-                    en_q = safe_int(end_qs[i] if i < len(end_qs) else 4, default=4)
-                    new_stages.append({'type': t, 'start': st, 'start_q': st_q, 'end': en, 'end_q': en_q})
-
-                def safe_calc_abs(d, q):
-                    d_obj = safe_date_obj(d, fallback=date.today())
-                    return d_obj.toordinal() * 4 + safe_int(q, default=1)
-
-                max_stage = max(new_stages, key=lambda s: safe_calc_abs(s['end'], s['end_q']))
-                database.update_order_full(
-                    order_id, name, client_name, contact, comment, order_type, quantity, o_start, o_start_q, max_stage['end'], safe_int(max_stage['end_q'], default=4), new_stages,
-                    order_number=order_number, client_id=client_id, contact_type=contact_type,
-                    amount=amount, created_at=creation_date, positions=positions
-                )
-
-            # Новые файлы
-            try:
-                upload_folder = current_app.config.get('UPLOAD_FOLDER', 'app/static/uploads')
-                files_new = request.files.getlist('order_files')
-                for file in files_new:
-                    if file and file.filename:
-                        orig_name = file.filename
-                        ext = os.path.splitext(orig_name)[1]
-                        disk_name = f"{order_id}_{uuid.uuid4().hex[:8]}{ext}"
-                        file.save(os.path.join(upload_folder, disk_name))
-                        database.add_order_file(order_id, orig_name, f"uploads/{disk_name}")
-            except:
-                pass
-
-            flash('Заказ успешно сохранен', 'success')
-            return redirect(url_for('orders.order_detail', order_id=order_id))
-
-        except Exception as e:
-            flash(f'Ошибка при обновлении заказа: {str(e)}', 'error')
-            return redirect(url_for('orders.edit_order_view', order_id=order_id))
-
-    def date_to_abs_q(d_str, q): return date.fromisoformat(d_str).toordinal() * 4 + int(q) - 1
-    for s in stages:
-        s_abs = date_to_abs_q(s['start_date'], s['start_q'])
-        e_abs = date_to_abs_q(s['end_date'], s['end_q'])
-        s['duration_days'] = (e_abs - s_abs + 1) / 4.0
-
-    clients = dict_model.get_all_clients()
-
-    return render_template('edit_order.html', 
-                           order=order, stages=stages, files=files, items=items,
-                           stage_list=STAGE_LIST, clients=clients)
-
-@orders_bp.route('/delete_file/<int:file_id>', methods=['POST'])
-def delete_file_view(file_id):
-    order_id = request.form.get('order_id')
-    rel_path = database.delete_order_file(file_id)
-    if rel_path:
-        full_path = os.path.join(current_app.root_path, 'static', rel_path)
-        if os.path.exists(full_path):
-            try: os.remove(full_path)
-            except: pass
-    flash('Файл удален', 'success')
-    return redirect(url_for('orders.edit_order_view', order_id=order_id) if order_id else url_for('orders.orders_list'))
+@orders_bp.route('/delete_draft/<int:draft_id>', methods=['POST'])
+def delete_draft_view(draft_id):
+    database.delete_draft(draft_id)
+    flash('Черновик удален', 'success')
+    return redirect(url_for('orders.orders_list', filter='drafts'))
 
 @orders_bp.route('/api/check_order_number')
 def check_order_number_api():
@@ -437,8 +269,7 @@ def api_drafts():
             if 'payload' in request.form:
                 try: data = json.loads(request.form['payload'])
                 except: data = {}
-            else:
-                data = dict(request.form)
+            else: data = dict(request.form)
 
         data = data or {}
         title = data.get('title', 'Без названия').strip() or 'Без названия'
@@ -453,6 +284,5 @@ def api_draft_item(draft_id):
         database.delete_draft(draft_id)
         return jsonify({'success': True})
     draft = database.get_draft(draft_id)
-    if not draft:
-        return jsonify({'error': 'Черновик не найден'}), 404
+    if not draft: return jsonify({'error': 'Черновик не найден'}), 404
     return jsonify(draft)

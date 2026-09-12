@@ -2,12 +2,13 @@
 {% block title %}Заказ №{{ order.order_number or order.id }} - {{ order.name }}{% endblock %}
 {% block content %}
 <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-    <a href="{% if back_url == 'calendar' %}/?year={{ (order.start_date or '2026-01-01').split('-')[0] }}&month={{ ((order.start_date or '2026-01-01').split('-')[1]|int if '-' in (order.start_date or '') else 1) }}{% else %}/orders{% endif %}" class="btn btn-outline" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+    {% set start_parts = (order.start_date or '2026-01-01').split('-') %}
+    <a href="{% if back_url == 'calendar' %}/?year={{ start_parts[0] }}&month={{ start_parts[1]|int if '-' in (order.start_date or '') else 1 }}{% else %}/orders{% endif %}" class="btn btn-outline" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
         ← {% if back_url == 'calendar' %}В календарь{% else %}В заказы{% endif %}
     </a>
     
     <div style="display: flex; gap: 10px;">
-        <a href="/?year={{ (order.start_date or '2026-01-01').split('-')[0] }}&month={{ ((order.start_date or '2026-01-01').split('-')[1]|int if '-' in (order.start_date or '') else 1) }}&tab={{ order.order_type }}" class="btn btn-outline" style="border-color:#2563eb; color:#2563eb; font-weight:600;">
+        <a href="/?year={{ start_parts[0] }}&month={{ start_parts[1]|int if '-' in (order.start_date or '') else 1 }}&tab={{ order.order_type or 'batch' }}" class="btn btn-outline" style="border-color:#2563eb; color:#2563eb; font-weight:600;">
             Открыть в календаре
         </a>
         <a href="/edit_order/{{ order.id }}" class="btn btn-primary">Редактировать</a>
@@ -56,9 +57,10 @@
     {% endif %}
 </div>
 
+<!-- СОСТАВ ЗАКАЗА (Пункт 8 ТЗ: без Onesize, Пункт 10 ТЗ: файлы к позициям) -->
 {% if items %}
 <div class="card-box" style="margin-bottom: 20px;">
-    <h3 style="margin-bottom: 15px; color: #2563eb;">Состав заказа (Изделия и размерная сетка)</h3>
+    <h3 style="margin-bottom: 15px; color: #2563eb;">Состав заказа</h3>
     <div style="display: grid; gap: 15px;">
         {% for it in items %}
         <div style="background: rgba(0,0,0,0.02); border: 1px solid #e5e7eb; border-radius: 6px; padding: 15px;">
@@ -73,6 +75,7 @@
                 <span><strong>Цвет:</strong> {{ it.fabric_color or '—' }}</span>
             </div>
 
+            <!-- Таблица 9 размеров без Onesize -->
             <div style="overflow-x: auto; margin-bottom: 8px;">
                 <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 12px; background: #fff;">
                     <thead>
@@ -86,7 +89,6 @@
                             <th style="border: 1px solid #cbd5e1; padding: 4px;">XL</th>
                             <th style="border: 1px solid #cbd5e1; padding: 4px;">2XL</th>
                             <th style="border: 1px solid #cbd5e1; padding: 4px;">3XL</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 4px;">One Size</th>
                             <th style="border: 1px solid #cbd5e1; padding: 4px; background: #eff6ff; color: #1d4ed8;">ИТОГО</th>
                         </tr>
                     </thead>
@@ -101,7 +103,6 @@
                             <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_xl }}</td>
                             <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_2xl }}</td>
                             <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_3xl }}</td>
-                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_onesize }}</td>
                             <td style="border: 1px solid #cbd5e1; padding: 4px; font-weight: 700; background: #eff6ff; color: #1d4ed8;">{{ it.total_quantity }} шт.</td>
                         </tr>
                     </tbody>
@@ -120,40 +121,24 @@
                 </div>
             </div>
             {% endif %}
+
+            {% if it.files %}
+            <div style="font-size: 12px; margin-top: 8px;">
+                <strong>Файлы позиции:</strong>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+                    {% for pf in it.files %}
+                    <a href="/static/{{ pf.file_path }}" target="_blank" class="btn btn-outline" style="padding: 2px 8px; font-size: 11px;">{{ pf.file_name }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
 </div>
 {% endif %}
 
-<div class="card-box" style="margin-bottom: 20px;">
-    <h3 style="margin-bottom: 15px;">Прикрепленные макеты и файлы ({{ files|length }})</h3>
-    {% if files %}
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
-        {% for f in files %}
-        <div class="file-card">
-            {% set ext = f.file_name.split('.')[-1].lower() %}
-            {% if ext in ['png', 'jpg', 'jpeg', 'webp', 'gif'] %}
-                <a href="/static/{{ f.file_path }}" target="_blank">
-                    <img src="/static/{{ f.file_path }}" alt="{{ f.file_name }}" style="width:100%; height:110px; object-fit:cover; border-radius:4px; margin-bottom:8px;">
-                </a>
-            {% else %}
-                <div style="height:110px; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.04); border-radius:4px; font-size:24px; margin-bottom:8px;">
-                    ФАЙЛ
-                </div>
-            {% endif %}
-            <div style="font-size:12px; font-weight:600; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="{{ f.file_name }}">
-                {{ f.file_name }}
-            </div>
-            <a href="/static/{{ f.file_path }}" download="{{ f.file_name }}" class="btn btn-outline" style="display:block; text-align:center; font-size:11px; padding:4px; margin-top:6px;">Скачать</a>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div style="color:#6b7280; font-size:13px;">Файлы и макеты не прикреплены.</div>
-    {% endif %}
-</div>
-
+<!-- ГРАФИК ПРОИЗВОДСТВА (Пункт 4 ТЗ: Старт и Финиш) -->
 <div class="card-box">
     <h3 style="margin-bottom: 15px;">График производства ({{ total_duration }} дн.)</h3>
     <div style="margin-bottom: 15px; font-size: 14px;">
@@ -181,11 +166,8 @@
     .info-block { background: #f9fafb; padding: 16px; border-radius: 6px; border: 1px solid #e5e7eb; }
     .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
     .info-row span { color: #6b7280; }
-    .file-card { border: 1px solid #e5e7eb; padding: 10px; border-radius: 6px; background: #fff; }
-    
-    body.dark-theme .card-box { background: #1e1e1e; border: 1px solid #333; box-shadow: none; }
-    body.dark-theme .info-block { background: #2d2d2d; border-color: #444; }
+    body.dark-theme .card-box { background: #111822; border: 1px solid #1f2937; box-shadow: none; }
+    body.dark-theme .info-block { background: #0b0f14; border-color: #1f2937; }
     body.dark-theme .info-row span { color: #9ca3af; }
-    body.dark-theme .file-card { background: #2d2d2d; border-color: #444; }
 </style>
 {% endblock %}
