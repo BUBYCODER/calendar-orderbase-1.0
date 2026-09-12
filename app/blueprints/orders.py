@@ -83,18 +83,21 @@ def orders_list():
     filter_type = request.args.get('filter', 'all')
     counts = database.get_orders_counts()
     
+    page = safe_int(request.args.get('page'), 1)
+    total_pages = 1
+    current_page = 1
     if filter_type == 'drafts':
         drafts = database.get_drafts_list(search=search)
         orders = []
     else:
-        orders = database.get_orders_list(sort_by, sort_order, search=search, filter_type=filter_type)
+        orders, total_pages, current_page = database.get_orders_list(sort_by, sort_order, search=search, filter_type=filter_type, page=page, per_page=50)
         drafts = []
         
     next_sort_order = 'asc' if sort_order == 'desc' else 'desc'
     return render_template('orders/orders_list.html', 
                            orders=orders, drafts=drafts, counts=counts,
                            sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order,
-                           search=search, filter_type=filter_type)
+                           search=search, filter_type=filter_type, total_pages=total_pages, current_page=current_page)
 
 @orders_bp.route('/orders/<int:order_id>')
 def order_detail(order_id):
@@ -218,7 +221,9 @@ def add_order_view():
                     for file in p_files:
                         if file and file.filename:
                             orig_name = file.filename
-                            ext = os.path.splitext(orig_name)[1]
+                            ext = os.path.splitext(orig_name)[1].lower()
+                        if ext not in {'.png', '.jpg', '.jpeg', '.pdf', '.ai', '.psd', '.cdr', '.svg', '.tif', '.tiff', '.zip', '.rar'}:
+                            continue
                             disk_name = f"{order_id}_{uuid.uuid4().hex[:8]}{ext}"
                             file.save(os.path.join(upload_folder, disk_name))
                             database.add_order_file(order_id, orig_name, f"uploads/{disk_name}", position_index=int(p_idx))
@@ -336,7 +341,9 @@ def edit_order_view(order_id):
                 for file in new_files:
                     if file and file.filename:
                         orig_name = file.filename
-                        ext = os.path.splitext(orig_name)[1]
+                        ext = os.path.splitext(orig_name)[1].lower()
+                        if ext not in {'.png', '.jpg', '.jpeg', '.pdf', '.ai', '.psd', '.cdr', '.svg', '.tif', '.tiff', '.zip', '.rar'}:
+                            continue
                         disk_name = f"{order_id}_{uuid.uuid4().hex[:8]}{ext}"
                         file.save(os.path.join(upload_folder, disk_name))
                         database.add_order_file(order_id, orig_name, f"uploads/{disk_name}", position_index=1)

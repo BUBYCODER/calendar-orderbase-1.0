@@ -7,12 +7,15 @@
         ← {% if back_url == 'calendar' %}В календарь{% else %}В заказы{% endif %}
     </a>
     
-    <div style="display: flex; gap: 10px;">
-        <a href="/?year={{ start_parts[0] }}&month={{ start_parts[1]|int if '-' in (order.start_date or '') else 1 }}&tab={{ order.order_type or 'batch' }}" class="btn btn-outline" style="border-color:#2563eb; color:#2563eb; font-weight:600;">
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <a href="/?year={{ start_parts[0] }}&month={{ start_parts[1]|int if '-' in (order.start_date or '') else 1 }}&tab={{ order.order_type or 'batch' }}" class="btn btn-outline" style="font-weight:600;">
             Открыть в календаре
         </a>
+        <a href="/?year={{ start_parts[0] }}&month={{ start_parts[1]|int if '-' in (order.start_date or '') else 1 }}&tab={{ order.order_type or 'batch' }}&move_order={{ order.id }}" class="btn btn-outline btn-move-link" style="font-weight:600; border-color:#3b82f6; color:#60a5fa;" title="Интерактивно перенести этот заказ на сетке календаря">
+            Переместить
+        </a>
         <a href="/edit_order/{{ order.id }}" class="btn btn-primary">Редактировать</a>
-        <form action="/delete_order/{{ order.id }}" method="POST" style="display:inline;" onsubmit="return confirm('Вы уверены, что хотите полностью удалить этот заказ?');">
+        <form action="/delete_order/{{ order.id }}" method="POST" style="display:inline; margin:0;" onsubmit="return confirm('Вы уверены, что хотите полностью удалить этот заказ?');">
             <button type="submit" class="btn btn-danger">Удалить</button>
         </form>
     </div>
@@ -25,7 +28,7 @@
             <h1 style="font-size: 24px; color: inherit; margin: 0;">{{ order.name }}</h1>
         </div>
         <div>
-            <span style="font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 6px; text-transform: uppercase; background: {% if order.order_type == 'sample' %}#e5e7eb; color:#374151;{% else %}#dbeafe; color:#1e40af;{% endif %}">
+            <span class="order-type-badge order-type-{{ order.order_type }}" style="font-size: 12px; font-weight: 700; padding: 6px 14px; text-transform: uppercase;">
                 {{ 'ОБРАЗЕЦ' if order.order_type == 'sample' else 'ОСНОВНАЯ ПАРТИЯ' }}
             </span>
         </div>
@@ -148,12 +151,12 @@
 
     <div style="display: grid; gap: 10px;">
         {% for s in stages %}
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(0,0,0,0.02); border-left:4px solid #2563eb; border-radius:4px;">
+        <div class="stage-detail-row">
             <div>
-                <strong>{{ s.stage_type }}</strong> 
-                <span style="font-size:12px; color:#6b7280; margin-left:10px;">({{ s.duration_days }} дн.)</span>
+                <strong style="color: inherit;">{{ s.stage_type }}</strong> 
+                <span class="stage-duration-text">({{ s.duration_days }} дн.)</span>
             </div>
-            <div style="font-size:13px; font-weight:600; color:#2563eb;">
+            <div class="stage-dates-text">
                 {{ s.start_date|format_date }} (ч.{{ s.start_q }}) — {{ s.end_date|format_date }} (ч.{{ s.end_q }})
             </div>
         </div>

@@ -680,6 +680,22 @@ function stepSizeInput(btn, step) {
     let localOccupiedMapForPicker = {};
 
     async function loadOccupiedSlots() {
+        
+        document.querySelectorAll('.position-card').forEach((c) => {
+            const pId = c.dataset.pid;
+            const prod = c.querySelector(`[name="product_${pId}"]`);
+            const pat = c.querySelector(`[name="pattern_${pId}"]`);
+            const fab = c.querySelector(`[name="fabric_${pId}"]`);
+            if (prod && pat && fab) {
+                if (!prod.value.trim() || !pat.value.trim() || !fab.value.trim()) {
+                    isValid = false;
+                    if (!firstInvalid) firstInvalid = prod;
+                    c.style.border = '1px solid #dc2626';
+                } else {
+                    c.style.border = '';
+                }
+            }
+        });
         const type = document.getElementById('order_type').value;
         const res = await fetch(`/api/occupied?order_type=${type}`);
         const slots = await res.json();
@@ -786,6 +802,22 @@ function stepSizeInput(btn, step) {
     }
 
     function toggleOrderTypeUI() {
+        
+        document.querySelectorAll('.position-card').forEach((c) => {
+            const pId = c.dataset.pid;
+            const prod = c.querySelector(`[name="product_${pId}"]`);
+            const pat = c.querySelector(`[name="pattern_${pId}"]`);
+            const fab = c.querySelector(`[name="fabric_${pId}"]`);
+            if (prod && pat && fab) {
+                if (!prod.value.trim() || !pat.value.trim() || !fab.value.trim()) {
+                    isValid = false;
+                    if (!firstInvalid) firstInvalid = prod;
+                    c.style.border = '1px solid #dc2626';
+                } else {
+                    c.style.border = '';
+                }
+            }
+        });
         const type = document.getElementById('order_type').value;
         if (type === 'sample') {
             document.getElementById('batch-ui').style.display = 'none';
@@ -929,6 +961,22 @@ function stepSizeInput(btn, step) {
             if (!firstInvalid) firstInvalid = btn;
         }
 
+        
+        document.querySelectorAll('.position-card').forEach((c) => {
+            const pId = c.dataset.pid;
+            const prod = c.querySelector(`[name="product_${pId}"]`);
+            const pat = c.querySelector(`[name="pattern_${pId}"]`);
+            const fab = c.querySelector(`[name="fabric_${pId}"]`);
+            if (prod && pat && fab) {
+                if (!prod.value.trim() || !pat.value.trim() || !fab.value.trim()) {
+                    isValid = false;
+                    if (!firstInvalid) firstInvalid = prod;
+                    c.style.border = '1px solid #dc2626';
+                } else {
+                    c.style.border = '';
+                }
+            }
+        });
         const type = document.getElementById('order_type').value;
         if (type === 'batch') {
             const rows = document.querySelectorAll('#sortable-stages li');
@@ -1164,6 +1212,10 @@ function stepSizeInput(btn, step) {
             const res = await fetch('/api/drafts/' + currentDraftId);
             const draft = await res.json();
             if (!draft || !draft.data_json) return;
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-error';
+            alertDiv.innerHTML = '<b>Черновик восстановлен!</b> Пожалуйста, прикрепите макеты/файлы заново, так как они не сохраняются в черновике.';
+            document.querySelector('.form-container').prepend(alertDiv);
             const data = JSON.parse(draft.data_json);
             const f = data.fields || {};
 

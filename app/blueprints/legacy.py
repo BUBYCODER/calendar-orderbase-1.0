@@ -1,3 +1,4 @@
+import json
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from datetime import datetime, date
 import calendar
@@ -181,11 +182,34 @@ def index():
     load_percent = int(round((occupied_slots / total_available_slots) * 100)) if total_available_slots > 0 else 0
     if load_percent > 100: load_percent = 100
     
+        # Подготовка JSON данных заказов для мгновенного перетаскивания (без задержек сети)
+    orders_json = []
+    for o in main_orders:
+        orders_json.append({
+            'id': o['id'],
+            'num': o.get('order_number') or o['id'],
+            'name': o['name'],
+            'qty': o.get('quantity') or 0,
+            'type': o.get('order_type'),
+            'start_date': o['start_date'],
+            'start_q': o['start_q'],
+            'end_date': o['end_date'],
+            'end_q': o['end_q'],
+            'stages': [{
+                'type': st.get('type') or st.get('stage_type'),
+                'start': st.get('start') or st.get('start_date'),
+                'start_q': st.get('start_q', 1),
+                'end': st.get('end') or st.get('end_date'),
+                'end_q': st.get('end_q', 4)
+            } for st in o.get('stages', [])]
+        })
+    main_orders_json = json.dumps(orders_json, ensure_ascii=False)
+
     return render_template('index.html', calendar_data=calendar_data, year=year, month=month, current_tab=current_tab,
                            month_name=planner.get_month_name(month), prev_month=month-1 if month>1 else 12, prev_year=year if month>1 else year-1,
                            next_month=month+1 if month<12 else 1, next_year=year if month<12 else year+1, 
                            now=today, load_percent=load_percent, total_items=total_items,
-                           active_batches=active_batches, active_samples=active_samples)
+                           active_batches=active_batches, active_samples=active_samples, main_orders_json=main_orders_json)
 
 @legacy_bp.route('/day/<date_str>')
 def day_view(date_str):
@@ -273,17 +297,17 @@ def order_view(order_id):
         order, stages = result
         
         for s in stages:
-            start_val = s.get('start', s.get('start_date'))
-            end_val = s.get('end', s.get('end_date'))
+            start_val = str(s.get('start', s.get('start_date')))[:10]
+            end_val = str(s.get('end', s.get('end_date')))[:10]
             s['start_formatted'] = f"{datetime.strptime(start_val, '%Y-%m-%d').strftime('%d.%m.%Y')} (ч.{s['start_q']})"
             s['end_formatted'] = f"{datetime.strptime(end_val, '%Y-%m-%d').strftime('%d.%m.%Y')} (ч.{s['end_q']})"
-            s_abs = date.fromisoformat(start_val).toordinal() * 4 + s['start_q'] - 1
-            e_abs = date.fromisoformat(end_val).toordinal() * 4 + s['end_q'] - 1
+            s_abs = date.fromisoformat(start_val).toordinal() * 4 + int(s['start_q']) - 1
+            e_abs = date.fromisoformat(end_val).toordinal() * 4 + int(s['end_q']) - 1
             s['duration_days'] = (e_abs - s_abs + 1) / 4.0
             s['stage_type'] = s.get('stage_type', s.get('type'))
             
-        order_s_abs = date.fromisoformat(order['start_date']).toordinal() * 4 + order['start_q'] - 1
-        order_e_abs = date.fromisoformat(order['end_date']).toordinal() * 4 + order['end_q'] - 1
+        order_s_abs = date.fromisoformat(str(order.get('start_date') or '2026-01-01')[:10]).toordinal() * 4 + int(order.get('start_q') or 1) - 1
+        order_e_abs = date.fromisoformat(str(order.get('end_date') or '2026-01-01')[:10]).toordinal() * 4 + int(order.get('end_q') or 4) - 1
         total_duration = (order_e_abs - order_s_abs + 1) / 4.0
         
         return jsonify({

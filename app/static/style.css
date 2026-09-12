@@ -1193,3 +1193,402 @@ input[type=number] {
 .show-delete-btn .pos-delete-btn {
     display: inline-block !important;
 }
+
+/* =========================================================
+   ТАБЫ И СЧЁТЧИКИ: НЕОНОВАЯ РАМКА И ТОЧНАЯ ЦЕНТРОВКА
+   ========================================================= */
+html.dark-theme,
+html.dark-theme body {
+    background-color: #121212 !important;
+    color: #e5e7eb !important;
+}
+
+.tab-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 7px 16px !important;
+    border: 1.5px solid #2563eb !important;
+    background: #ffffff !important;
+    color: #2563eb !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+    font-size: 13.5px !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+    box-sizing: border-box !important;
+    user-select: none !important;
+}
+.tab-btn:hover {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    border-color: #1d4ed8 !important;
+}
+.tab-btn.active {
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+}
+
+/* Бейдж-счётчик с математическим центрированием цифры */
+.tab-badge {
+    display: inline-grid !important;
+    place-items: center !important;
+    place-content: center !important;
+    min-width: 22px !important;
+    height: 22px !important;
+    padding: 0 5px !important;
+    border-radius: 11px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    font-variant-numeric: tabular-nums !important;
+    box-sizing: border-box !important;
+    background: rgba(37, 99, 235, 0.12) !important;
+    color: #1d4ed8 !important;
+}
+.tab-btn.active .tab-badge {
+    background: rgba(255, 255, 255, 0.28) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.45) !important;
+}
+
+/* ТЁМНАЯ ТЕМА: Стильные неактивные табы */
+.dark-theme .tab-btn {
+    background: #181f2a !important;
+    border: 1.5px solid #2e3a4e !important;
+    color: #93c5fd !important;
+}
+.dark-theme .tab-btn:hover {
+    background: #20293a !important;
+    border-color: #3b82f6 !important;
+    color: #bfdbfe !important;
+}
+.dark-theme .tab-badge {
+    background: #232d3f !important;
+    color: #93c5fd !important;
+    border: 1px solid #3b82f6 !important;
+}
+
+/* ТЁМНАЯ ТЕМА: Активный таб — НЕОНОВАЯ РАМКА без глухой синей заливки */
+.dark-theme .tab-btn.active {
+    background: #1c2536 !important;
+    border: 2px solid #3b82f6 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    box-shadow: 0 0 14px rgba(59, 130, 246, 0.45), inset 0 0 10px rgba(59, 130, 246, 0.12) !important;
+}
+.dark-theme .tab-btn.active:hover {
+    background: #222d42 !important;
+}
+.dark-theme .tab-btn.active .tab-badge {
+    background: rgba(59, 130, 246, 0.25) !important;
+    color: #ffffff !important;
+    border: 1.5px solid #60a5fa !important;
+    box-shadow: 0 0 8px rgba(96, 165, 250, 0.5) !important;
+}
+
+/* =========================================================
+   ИСПРАВЛЕНИЕ КНОПОК ЧЕРНОВИКОВ, ТИПОВ ЗАКАЗА И КОНТРАСТА
+   ========================================================= */
+
+/* Единая высота, центровка и шрифт кнопок черновиков */
+.btn-action-sm {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 28px !important;
+    padding: 0 14px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    border: none !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    font-family: inherit !important;
+}
+
+/* Бейджи типа заказа (Основная партия / Образец) */
+.order-type-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 3px 10px !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+}
+.order-type-badge.order-type-batch {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    border: 1px solid #bfdbfe !important;
+}
+.order-type-badge.order-type-sample {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+/* В темной теме — мягкие неоновые бейджи БЕЗ белых рамок */
+.dark-theme .order-type-badge.order-type-batch {
+    background: rgba(37, 99, 235, 0.16) !important;
+    color: #93c5fd !important;
+    border: 1px solid rgba(59, 130, 246, 0.35) !important;
+}
+.dark-theme .order-type-badge.order-type-sample {
+    background: rgba(148, 163, 184, 0.16) !important;
+    color: #cbd5e1 !important;
+    border: 1px solid rgba(148, 163, 184, 0.35) !important;
+}
+
+/* Настройка контраста: Верхняя плашка глубоко черная, основной фон темно-графитовый */
+.dark-theme .header {
+    background-color: #000000 !important;
+    border-bottom: 1px solid #1c222d !important;
+}
+html.dark-theme,
+html.dark-theme body,
+body.dark-theme {
+    background-color: #0c0e14 !important;
+    color: #e5e7eb !important;
+}
+
+/* =========================================================
+   ДОПОЛНИТЕЛЬНЫЕ СТИЛИ: АЛЕРТЫ, ЭТАПЫ И НЕОНОВЫЙ КОНТУР
+   ========================================================= */
+
+/* Плавные алерты с поддержкой автоисчезновения */
+.alert {
+    /* /* display: flex !important; */ removed */
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 10px 16px !important;
+    border-radius: 8px !important;
+    margin-bottom: 15px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    transition: opacity 0.4s ease, transform 0.4s ease !important;
+}
+.dark-theme .alert-success {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #6ee7b7 !important;
+    border: 1px solid rgba(16, 185, 129, 0.35) !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.1) !important;
+}
+.dark-theme .alert-error {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #fca5a5 !important;
+    border: 1px solid rgba(239, 68, 68, 0.35) !important;
+}
+
+/* Строки этапов в карточке заказа (не сливаются с фоном) */
+.stage-detail-row {
+    /* /* display: flex !important; */ removed */
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 11px 16px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-left: 4px solid #2563eb !important;
+    border-radius: 6px !important;
+    margin-bottom: 8px !important;
+}
+.stage-duration-text {
+    font-size: 12px !important;
+    color: #6b7280 !important;
+    margin-left: 10px !important;
+}
+.stage-dates-text {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #2563eb !important;
+}
+
+.dark-theme .stage-detail-row {
+    background: #151e2b !important;
+    border: 1px solid #26354a !important;
+    border-left: 4px solid #3b82f6 !important;
+    color: #f1f5f9 !important;
+}
+.dark-theme .stage-duration-text {
+    color: #94a3b8 !important;
+}
+.dark-theme .stage-dates-text {
+    color: #93c5fd !important;
+}
+
+/* Неоновая подсветка контура заказа при наведении на календаре в цвет заказа */
+.q-cell.hovered {
+    z-index: 25 !important;
+    filter: brightness(1.05) !important;
+}
+.dark-theme .q-cell.hovered {
+    z-index: 25 !important;
+    filter: brightness(1.15) !important;
+}
+.q-cell.order-border-0.hovered { box-shadow: 0 0 10px #3b82f6, inset 0 0 4px #3b82f6 !important; border-color: #3b82f6 !important; }
+.q-cell.order-border-1.hovered { box-shadow: 0 0 10px #f59e0b, inset 0 0 4px #f59e0b !important; border-color: #f59e0b !important; }
+.q-cell.order-border-2.hovered { box-shadow: 0 0 10px #10b981, inset 0 0 4px #10b981 !important; border-color: #10b981 !important; }
+.q-cell.order-border-3.hovered { box-shadow: 0 0 10px #ec4899, inset 0 0 4px #ec4899 !important; border-color: #ec4899 !important; }
+.q-cell.order-border-4.hovered { box-shadow: 0 0 10px #8b5cf6, inset 0 0 4px #8b5cf6 !important; border-color: #8b5cf6 !important; }
+.q-cell.order-border-5.hovered { box-shadow: 0 0 10px #f97316, inset 0 0 4px #f97316 !important; border-color: #f97316 !important; }
+
+/* =========================================================
+   ЕДИНЫЙ ВНЕШНИЙ КОНТУР ЗАКАЗА И АВАТАР ПЕРЕТАСКИВАНИЯ
+   ========================================================= */
+
+/* Полностью убираем подсветку отдельных четвертей внутри заказа */
+.q-cell.order-border-0.hovered,
+.q-cell.order-border-1.hovered,
+.q-cell.order-border-2.hovered,
+.q-cell.order-border-3.hovered,
+.q-cell.order-border-4.hovered,
+.q-cell.order-border-5.hovered,
+.q-cell.hovered {
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+/* Единый внешний контур вокруг всего периметра заказа */
+.day-cell.order-contour-top {
+    border-top: 2.5px solid var(--order-glow-color, #3b82f6) !important;
+    box-shadow: 0 -4px 12px var(--order-glow-color, rgba(59, 130, 246, 0.45));
+}
+.day-cell.order-contour-bottom {
+    border-bottom: 2.5px solid var(--order-glow-color, #3b82f6) !important;
+    box-shadow: 0 4px 12px var(--order-glow-color, rgba(59, 130, 246, 0.45));
+}
+.day-cell.order-contour-left {
+    border-left: 2.5px solid var(--order-glow-color, #3b82f6) !important;
+    box-shadow: -4px 0 12px var(--order-glow-color, rgba(59, 130, 246, 0.45));
+}
+.day-cell.order-contour-right {
+    border-right: 2.5px solid var(--order-glow-color, #3b82f6) !important;
+    box-shadow: 4px 0 12px var(--order-glow-color, rgba(59, 130, 246, 0.45));
+}
+
+/* Аккуратные внешние скругления углов */
+.day-cell.order-contour-top.order-contour-left {
+    border-top-left-radius: 8px !important;
+}
+.day-cell.order-contour-top.order-contour-right {
+    border-top-right-radius: 8px !important;
+}
+.day-cell.order-contour-bottom.order-contour-left {
+    border-bottom-left-radius: 8px !important;
+}
+.day-cell.order-contour-bottom.order-contour-right {
+    border-bottom-right-radius: 8px !important;
+}
+
+.day-cell[class*="order-contour-"] {
+    z-index: 10 !important;
+    position: relative !important;
+}
+
+/* Курсор захвата для ячеек заказа */
+
+
+
+/* Плавающий аватар под курсором при перетаскивании (как на смартфоне) */
+.drag-proxy-avatar {
+    position: fixed !important;
+    pointer-events: none !important;
+    z-index: 99999 !important;
+    /* /* display: flex !important; */ removed */
+    align-items: center !important;
+    gap: 8px !important;
+    background: rgba(15, 23, 42, 0.96) !important;
+    color: #ffffff !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    padding: 8px 14px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+    transform: translate(-50%, -130%) !important;
+    border: 1.5px solid #3b82f6 !important;
+    backdrop-filter: blur(6px) !important;
+    white-space: nowrap !important;
+    user-select: none !important;
+}
+
+/* =========================================================
+   ЧИСТЫЙ СТИЛЬ: БЕЗ СТЫКОВ И ПЕРЕТАСКИВАНИЕ КАК НА СМАРТФОНЕ
+   ========================================================= */
+
+/* Полностью убираем любые свечения со стыков ячеек */
+.day-cell.order-contour-top,
+.day-cell.order-contour-bottom,
+.day-cell.order-contour-left,
+.day-cell.order-contour-right,
+.q-cell.hovered,
+.dark-theme .q-cell.hovered {
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+
+
+/* Плитка-аватар перетаскивания под курсором (как на смартфоне) */
+.drag-proxy-avatar {
+    position: fixed !important;
+    pointer-events: none !important;
+    z-index: 99999 !important;
+    background: #0f172a !important;
+    border: 1.5px solid #3b82f6 !important;
+    color: #ffffff !important;
+    padding: 10px 14px !important;
+    border-radius: 10px !important;
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.7) !important;
+    transform: translate(-50%, -125%) !important;
+    min-width: 230px !important;
+    box-sizing: border-box !important;
+    user-select: none !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+/* =========================================================
+   ИСПРАВЛЕНИЕ КУРСОРА И ПЕРЕМЕЩЕНИЯ ЗАКАЗА
+   ========================================================= */
+
+/* Обычный режим: курсор-указатель pointer для клика и просмотра деталей */
+.q-cell, .order-start-badge {
+    cursor: pointer !important;
+}
+
+/* Режим перемещения: курсор grab только когда активен перенос */
+body.in-move-mode .q-cell {
+    cursor: pointer !important;
+}
+body.in-move-mode .floating-order-cell {
+    cursor: grab !important;
+    animation: cellFloat 1.6s ease-in-out infinite !important;
+    outline: 2px dashed #3b82f6 !important;
+    outline-offset: -1px;
+}
+body.in-move-mode .floating-order-cell:active {
+    cursor: grabbing !important;
+}
+
+/* Плавный бар перемещения */
+.move-control-bar {
+    /* /* display: flex !important; */ removed */
+    justify-content: space-between !important;
+    align-items: center !important;
+    background: #0f172a !important;
+    color: #ffffff !important;
+    padding: 10px 18px !important;
+    border-radius: 8px !important;
+    margin-bottom: 14px !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4) !important;
+}

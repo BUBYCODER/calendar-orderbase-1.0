@@ -312,6 +312,14 @@ def update_order_full(order_id, name, client, contact, comment, order_type, quan
     """, (name, client, contact, comment, order_type, quantity, order_start, order_start_q, order_end, order_end_q,
           order_number, client_id, contact_type, product_id, pattern_id, fabric_id, fabric_density_id, amount, created_at, order_id))
 
+    cursor.execute("SELECT file_path FROM order_files WHERE order_id = ?", (order_id,))
+    for row in cursor.fetchall():
+        try:
+            full_path = os.path.join(os.path.dirname(__file__), '../../app/static', row['file_path'])
+            if os.path.exists(full_path):
+                os.remove(full_path)
+        except:
+            pass
     cursor.execute("DELETE FROM stages WHERE order_id = ?", (order_id,))
     for stage in stages:
         cursor.execute("INSERT INTO stages (order_id, stage_type, start_date, start_q, end_date, end_q) VALUES (?, ?, ?, ?, ?, ?)",
@@ -434,6 +442,14 @@ def delete_draft(draft_id):
 def delete_order(order_id):
     conn = get_connection()
     cursor = conn.cursor()
+    cursor.execute("SELECT file_path FROM order_files WHERE order_id = ?", (order_id,))
+    for row in cursor.fetchall():
+        try:
+            full_path = os.path.join(os.path.dirname(__file__), '../../app/static', row['file_path'])
+            if os.path.exists(full_path):
+                os.remove(full_path)
+        except:
+            pass
     cursor.execute("DELETE FROM stages WHERE order_id = ?", (order_id,))
     cursor.execute("DELETE FROM order_items WHERE order_id = ?", (order_id,))
     cursor.execute("DELETE FROM order_files WHERE order_id = ?", (order_id,))
@@ -441,7 +457,7 @@ def delete_order(order_id):
     conn.commit()
     conn.close()
 
-def get_orders_list(sort_by='order_number', sort_order='desc', search='', filter_type='all'):
+def get_orders_list(sort_by='order_number', sort_order='desc', search='', filter_type='all', page=1, per_page=50):
     conn = get_connection()
     cursor = conn.cursor()
     valid_cols = {'order_number': 'orders.order_number', 'created_at': 'orders.created_at', 'order_type': 'orders.order_type', 'amount': 'orders.amount'}
@@ -457,10 +473,20 @@ def get_orders_list(sort_by='order_number', sort_order='desc', search='', filter
         query += " AND (CAST(orders.order_number AS TEXT) LIKE ? OR orders.name LIKE ? OR orders.client LIKE ? OR clients.name LIKE ? OR orders.comment LIKE ?)"
         params.extend([search_like]*5)
     query += f" ORDER BY {order_col} {order_dir}"
+    
+    count_query = "SELECT COUNT(*) FROM (" + query + ")"
+    cursor.execute(count_query, params)
+    total_items = cursor.fetchone()[0]
+    total_pages = max(1, (total_items + per_page - 1) // per_page)
+    if page < 1: page = 1
+    
+    query += " LIMIT ? OFFSET ?"
+    params.extend([per_page, (page - 1) * per_page])
+    
     cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    return [dict(r) for r in rows], total_pages, page
 
 def get_next_available_order_number():
     conn = get_connection()
@@ -602,6 +628,14 @@ def update_order(order_id, name, client, contact, comment, order_type, quantity,
          order_start, order_start_q, order_end, order_end_q, order_id)
     )
 
+    cursor.execute("SELECT file_path FROM order_files WHERE order_id = ?", (order_id,))
+    for row in cursor.fetchall():
+        try:
+            full_path = os.path.join(os.path.dirname(__file__), '../../app/static', row['file_path'])
+            if os.path.exists(full_path):
+                os.remove(full_path)
+        except:
+            pass
     cursor.execute("DELETE FROM stages WHERE order_id = ?", (order_id,))
     for stage in stages:
         st_type = stage.get('stage_type', stage.get('type', ''))

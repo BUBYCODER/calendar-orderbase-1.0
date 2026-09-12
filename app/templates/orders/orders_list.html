@@ -44,10 +44,10 @@
                 <td style="font-weight: 600; color: #2563eb;">{{ d.title }}</td>
                 <td style="color: #6b7280; font-size: 13px;">{{ d.updated_at[:16] if d.updated_at else '-' }}</td>
                 <td>
-                    <div style="display: flex; gap: 8px;">
-                        <a href="/add_order?draft_id={{ d.id }}" class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;">Продолжить</a>
-                        <form action="/delete_draft/{{ d.id }}" method="POST" style="display: inline;" onsubmit="return confirm('Удалить этот черновик?');">
-                            <button type="submit" class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;">Удалить</button>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <a href="/add_order?draft_id={{ d.id }}" class="btn btn-primary btn-action-sm">Продолжить</a>
+                        <form action="/delete_draft/{{ d.id }}" method="POST" style="margin: 0; display: inline-flex; align-items: center;" onsubmit="return confirm('Удалить этот черновик?');">
+                            <button type="submit" class="btn btn-danger btn-action-sm">Удалить</button>
                         </form>
                     </div>
                 </td>
@@ -84,7 +84,7 @@
                 <td style="color: #6b7280; font-size: 13px;">{{ order.created_at[:10] if order.created_at else '-' }}</td>
                 <td style="font-weight: 600;">{{ order.name }}</td>
                 <td>
-                    <span style="font-size: 11px; font-weight: 600; background: {% if order.order_type == 'sample' %}#f3f4f6; color:#4b5563;{% else %}#eff6ff; color:#1d4ed8;{% endif %}; padding: 3px 8px; border-radius: 4px;">
+                    <span class="order-type-badge order-type-{{ order.order_type }}">
                         {{ 'Образец' if order.order_type == 'sample' else 'Основная партия' }}
                     </span>
                 </td>
@@ -104,23 +104,23 @@
         </tbody>
     </table>
 </div>
+
+{% if total_pages and total_pages > 1 and filter_type != 'drafts' %}
+<div style="display: flex; justify-content: center; gap: 8px; margin-top: 15px;">
+    {% if current_page > 1 %}
+    <a href="?page={{ current_page - 1 }}&filter={{ filter_type }}&search={{ search }}&sort_by={{ sort_by }}&sort_order={{ sort_order }}" class="btn btn-outline">Назад</a>
+    {% endif %}
+    <span style="padding: 6px 12px; background: #f3f4f6; border-radius: 4px; font-weight: 600; color: #374151;">Страница {{ current_page }} из {{ total_pages }}</span>
+    {% if current_page < total_pages %}
+    <a href="?page={{ current_page + 1 }}&filter={{ filter_type }}&search={{ search }}&sort_by={{ sort_by }}&sort_order={{ sort_order }}" class="btn btn-outline">Вперед</a>
+    {% endif %}
+</div>
+{% endif %}
+
 {% endif %}
 
 <style>
-    .tab-badge {
-        display: inline-block;
-        font-size: 11px;
-        font-weight: 700;
-        margin-left: 4px;
-        padding: 0 5px;
-        border-radius: 8px;
-        background: rgba(37, 99, 235, 0.15);
-        color: inherit;
-    }
-    .tab-btn.active .tab-badge {
-        background: rgba(255, 255, 255, 0.25);
-        color: #fff;
-    }
+    /* Стили .tab-badge вынесены в style.css */
     .table-container { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow-x: auto; margin-bottom: 30px; }
     .orders-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
     .orders-table th { padding: 14px 16px; background: #f9fafb; border-bottom: 2px solid #e5e7eb; font-weight: 600; color: #374151; white-space: nowrap; }

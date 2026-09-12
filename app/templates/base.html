@@ -1,6 +1,28 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme');
+            if (theme === 'dark' || (!theme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    // Автоматическое плавное скрытие уведомлений через 3.5 секунды
+        document.addEventListener('DOMContentLoaded', function() {
+            var alerts = document.querySelectorAll('.alert');
+            if (alerts.length > 0) {
+                setTimeout(function() {
+                    alerts.forEach(function(el) {
+                        el.style.opacity = '0';
+                        el.style.transform = 'translateY(-8px)';
+                        setTimeout(function() { el.remove(); }, 500);
+                    });
+                }, 3500);
+            }
+        });
+    </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Bomonti{% endblock %}</title>
@@ -71,11 +93,13 @@
 
     <script>
         function toggleDarkMode() {
-            document.body.classList.toggle('dark-theme');
-            localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+            var isDark = document.documentElement.classList.toggle('dark-theme');
+            document.body.classList.toggle('dark-theme', isDark);
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
         }
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', function() {
             if (localStorage.getItem('theme') === 'dark') {
+                document.documentElement.classList.add('dark-theme');
                 document.body.classList.add('dark-theme');
             }
         });
@@ -131,19 +155,33 @@
                     <div>${stagesHtml}</div>
                     
                     <div style="margin-top:25px; display:flex; gap:10px; flex-wrap:wrap;">
-                        <a href="/orders/${data.id}?from=calendar" class="btn btn-primary" style="flex:1; min-width:140px; text-align:center;">Карточка заказа</a>
-                        <a href="/edit_order/${data.id}" class="btn btn-outline" style="flex:1; min-width:140px; text-align:center;">Редактировать</a>
-                        <form action="/delete_order/${data.id}" method="POST" style="flex:1; min-width:120px; display:flex;" onsubmit="return confirm('Вы уверены, что хотите полностью удалить этот заказ и все его этапы?');">
+                        <a href="/orders/${data.id}?from=calendar" class="btn btn-outline" style="flex:1; min-width:130px; text-align:center;">Карточка заказа</a>
+                        <button type="button" class="btn btn-primary" onclick="closeOrderModal(); enterCalendarMoveMode(${data.id});" style="flex:1; min-width:150px; text-align:center; font-weight:700;">Перенести</button>
+                        <a href="/edit_order/${data.id}" class="btn btn-outline" style="flex:1; min-width:120px; text-align:center;">Редактировать</a>
+                        <form action="/delete_order/${data.id}" method="POST" style="flex:1; min-width:100px; display:flex;" onsubmit="return confirm('Вы уверены, что хотите полностью удалить этот заказ и все его этапы?');">
                             <button type="submit" class="btn btn-danger" style="width:100%;">Удалить</button>
                         </form>
                     </div>
                 `;
                 document.getElementById('orderModal').classList.add('active');
-            }).catch(err => alert('Ошибка загрузки заказа'));
+            }).catch(err => { if(err.name !== 'AbortError' && err.message !== 'Failed to fetch') alert('Ошибка загрузки заказа: ' + err.message); });
         }
         function closeOrderModal() { document.getElementById('orderModal').classList.remove('active'); }
         function closeModalOutside(event) { if (event.target === document.getElementById('orderModal')) closeOrderModal(); }
         document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeOrderModal(); closeDevModal(); } });
+    // Автоматическое плавное скрытие уведомлений через 3.5 секунды
+        document.addEventListener('DOMContentLoaded', function() {
+            var alerts = document.querySelectorAll('.alert');
+            if (alerts.length > 0) {
+                setTimeout(function() {
+                    alerts.forEach(function(el) {
+                        el.style.opacity = '0';
+                        el.style.transform = 'translateY(-8px)';
+                        setTimeout(function() { el.remove(); }, 500);
+                    });
+                }, 3500);
+            }
+        });
     </script>
 </body>
 </html>

@@ -51,7 +51,7 @@
                 </div>
                 <div class="form-group" style="flex: 1; min-width: 140px;">
                     <label class="field-title">Тип заказа</label>
-                    <select name="order_type" id="order_type">
+                    <select name="order_type" id="order_type" onchange="toggleOrderTypeUI(); loadOccupiedSlots();">
                         <option value="batch" {% if order.order_type == 'batch' %}selected{% endif %}>Основная партия</option>
                         <option value="sample" {% if order.order_type == 'sample' %}selected{% endif %}>Образец</option>
                     </select>
@@ -136,6 +136,30 @@
                         <div class="stage-dropdown-item" onclick="promptCustomStage()">+ Свой этап...</div>
                     </div>
                 </div>
+            
+            </div>
+
+            <div id="sample-ui" style="display:none; margin-top:15px;">
+                <div class="form-group sample-duration-box" id="group-sample-duration">
+                    <label class="field-title">Общая длительность пошива образца *</label>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <select id="sample-duration" style="width: auto; max-width: 200px;" onchange="calculateSampleSchedule();">
+                            <option value="">Выберите...</option>
+                            <option value="0.25">0.25 дня</option>
+                            <option value="0.5">0.5 дня</option>
+                            <option value="1">1 день</option>
+                            <option value="2">2 дня</option>
+                            <option value="3">3 дня</option>
+                            <option value="4">4 дня</option>
+                            <option value="5">5 дней</option>
+                            <option value="6">6 дней</option>
+                            <option value="7">7 дней</option>
+                        </select>
+                        <span id="sample-dates-display" style="font-size: 13px; font-weight:600; color:#58a6ff;"></span>
+                    </div>
+                    <input type="hidden" name="sample_end_date" id="sample-end-date">
+                    <input type="hidden" name="sample_end_q" id="sample-end-q">
+                </div>
             </div>
         </div>
 
@@ -184,6 +208,51 @@
 </div>
 
 <script>
+    
+    function toggleOrderTypeUI() {
+        const type = document.getElementById('order_type').value;
+        const batchUi = document.getElementById('batch-ui');
+        const sampleUi = document.getElementById('sample-ui');
+        if (type === 'sample') {
+            if (batchUi) batchUi.style.display = 'none';
+            if (sampleUi) sampleUi.style.display = 'block';
+            if (typeof calculateSampleSchedule === 'function') calculateSampleSchedule();
+        } else {
+            if (batchUi) batchUi.style.display = 'block';
+            if (sampleUi) sampleUi.style.display = 'none';
+            if (typeof calculateSchedule === 'function') calculateSchedule();
+        }
+    }
+
+    function calculateSampleSchedule() {
+        let startD = document.getElementById('global-start-date').value;
+        let startQ = document.getElementById('global-start-q').value;
+        let sel = document.getElementById('sample-duration');
+        if (!sel || !startD) return;
+        let duration = parseFloat(sel.value || 0);
+
+        if (duration > 0) {
+            let currentAbsQ = dateToAbs(startD, startQ);
+            let quartersNeeded = Math.round(duration * 4);
+            let stageEndQ = currentAbsQ;
+            let localOccupiedMap = {...dbOccupiedMap};
+            
+            while (quartersNeeded > 0) {
+                if (!localOccupiedMap[currentAbsQ]) {
+                    stageEndQ = currentAbsQ;
+                    quartersNeeded--;
+                    localOccupiedMap[currentAbsQ] = true;
+                }
+                currentAbsQ++;
+            }
+            
+            let endObj = absToDateAndQ(stageEndQ);
+            document.getElementById('sample-end-date').value = endObj.date;
+            document.getElementById('sample-end-q').value = endObj.q;
+            document.getElementById('sample-dates-display').textContent = `${formatD(startD)} (ч.${startQ}) — ${formatD(endObj.date)} (ч.${endObj.q})`;
+        }
+    }
+
     async function checkOrderNumber(val) {
         const statusEl = document.getElementById('order-number-status');
         if (!val || val <= 0) { statusEl.textContent = ''; return; }
@@ -479,6 +548,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         loadOccupiedSlots();
+        toggleOrderTypeUI();
     });
 
     function stepSizeInput(btn, step) {

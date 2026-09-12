@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Календарь{% endblock %}
+{% block title %}Календарь<div id="dragAvatar" class="drag-proxy-avatar" style="display: none;"></div>
+{% endblock %}
 {% block content %}
 
 <div class="calendar-header">
@@ -21,13 +22,23 @@
     </div>
 </div>
 
+
+
+
+<div id="moveControlBar" class="move-control-bar" style="display: none !important; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 100000; background: #0f172a; padding: 14px 24px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #334155; align-items: center; gap: 20px;">
+    <div style="color: #fff; font-weight: 600; font-size: 15px;" id="moveInfoText">Режим переноса: перетащите заказ на новую дату</div>
+    <div style="display: flex; gap: 10px;">
+        <button class="btn btn-outline" onclick="exitCalendarMoveMode()" style="border-color: #475569; color: #cbd5e1; background: transparent;">Отмена</button>
+    </div>
+</div>
 <div class="calendar">
     <div class="weekdays">
         <div class="weekday">Понедельник</div><div class="weekday">Вторник</div><div class="weekday">Среда</div>
         <div class="weekday">Четверг</div><div class="weekday">Пятница</div><div class="weekday">Суббота</div><div class="weekday">Воскресенье</div>
     </div>
 
-    <div class="days-grid">
+    <div class="days-grid" style="position: relative;">
+        <svg id="orderContourSvg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 25; overflow: visible;"><path id="orderContourPath" d="" stroke="#3b82f6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" fill="none"></path><path id="orderProjectedPath" d="" stroke="#10b981" stroke-width="3" stroke-dasharray="7 5" stroke-linejoin="round" stroke-linecap="round" fill="rgba(59, 130, 246, 0.15)"></path></svg>
         {% for day in calendar_data %}
             <div class="day-cell {{ day.day_bg_class }} {% if day.is_today %}day-today{% endif %} {% if day.is_other_month %}other-month{% endif %}"
                 data-date="{{ day.date_str }}"
@@ -111,61 +122,537 @@
     {% endif %}
 </div>
 
+<style>
+    /* Глобальный курсор при самом процессе перетаскивания */
+    body.is-dragging-order * {
+        cursor: grabbing !important;
+        user-select: none !important;
+    }
+    .q-cell.drag-hidden {
+        opacity: 0.3 !important;
+        transform: scale(0.95);
+        transition: all 0.2s ease;
+    }
+    /* Курсор grab появляется ТОЛЬКО в режиме переноса и ТОЛЬКО на выбранном заказе */
+    body.in-move-mode .floating-order-cell {
+        cursor: grab !important;
+        animation: cellFloat 1.6s ease-in-out infinite;
+        outline: 2px dashed #3b82f6;
+        outline-offset: -1px;
+    }
+    body.in-move-mode .floating-order-cell:active {
+        cursor: grabbing !important;
+    }
+    
+    /* Умные курсоры для пустых ячеек внутри дня с заказом */
+    .day-cell:has(.q-cell[data-order-id]) .q-cell.empty {
+        cursor: pointer !important;
+    }
+    body.in-move-mode .day-cell:has(.floating-order-cell) .q-cell.empty {
+        cursor: grab !important;
+    }
+    body.in-move-mode .day-cell:has(.floating-order-cell) .q-cell.empty:active {
+        cursor: grabbing !important;
+    }
+</style>
 <script>
+    const ORDERS_MAP = {{ main_orders_json|safe if main_orders_json is defined else '[]' }};
+    const CURRENT_TAB = "{{ current_tab }}";
+
+    let justDropped = false;
     function handleOrderClick(orderId, event) {
         if (event) event.stopPropagation();
+        if (document.body.classList.contains('in-move-mode') || justDropped) return; 
         openOrderModal(orderId);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        // Бесшовная плавная подсветка всего заказа при наведении на любое поле дня
-        let activeHoverOrderId = null;
-        const daysGrid = document.querySelector('.days-grid');
+    // =========================================================
+    // 1. СКРУГЛЁННЫЙ ВНЕШНИЙ SVG-КОНТУР
+    // =========================================================
+    function getRoundedUnionSvgPath(cellsCoords, cellW, cellH, radius) {
+        if (!cellsCoords || cellsCoords.length === 0) return '';
+        const r = radius || 12;
+        const cellSet = new Set(cellsCoords.map(p => `${p[0]},${p[1]}`));
+        const edges = new Map();
 
-        if (daysGrid) {
-            daysGrid.addEventListener('mouseover', (e) => {
-                const target = e.target;
-                const cell = target.closest('.q-cell[data-order-id]');
-                const dayCell = target.closest('.day-cell');
+        cellsCoords.forEach(([c, rIdx]) => {
+            const x0 = c * cellW, y0 = rIdx * cellH;
+            const x1 = (c + 1) * cellW, y1 = (rIdx + 1) * cellH;
 
-                let orderId = null;
-                if (cell) {
-                    orderId = cell.dataset.orderId;
-                } else if (dayCell) {
-                    const firstOcc = dayCell.querySelector('.q-cell[data-order-id]');
-                    if (firstOcc) orderId = firstOcc.dataset.orderId;
+            if (!cellSet.has(`${c},${rIdx - 1}`)) edges.set(`${x0},${y0}`, `${x1},${y0}`);
+            if (!cellSet.has(`${c + 1},${rIdx}`)) edges.set(`${x1},${y0}`, `${x1},${y1}`);
+            if (!cellSet.has(`${c},${rIdx + 1}`)) edges.set(`${x1},${y1}`, `${x0},${y1}`);
+            if (!cellSet.has(`${c - 1},${rIdx}`)) edges.set(`${x0},${y1}`, `${x0},${y0}`);
+        });
+
+        const visited = new Set();
+        let fullPathD = [];
+
+        for (let startP of edges.keys()) {
+            if (!visited.has(startP)) {
+                let curr = startP;
+                let rawPts = [];
+                while (curr && !visited.has(curr)) {
+                    visited.add(curr);
+                    const [x, y] = curr.split(',').map(Number);
+                    rawPts.push([x, y]);
+                    curr = edges.get(curr);
+                    if (curr === startP) break;
                 }
 
-                if (orderId && orderId !== activeHoverOrderId) {
-                    if (activeHoverOrderId) {
-                        document.querySelectorAll(`.q-cell[data-order-id="${activeHoverOrderId}"]`).forEach(c => c.classList.remove('hovered'));
+                let cleanPts = [];
+                const nRaw = rawPts.length;
+                for (let i = 0; i < nRaw; i++) {
+                    const pPrev = rawPts[(i - 1 + nRaw) % nRaw];
+                    const pCurr = rawPts[i];
+                    const pNext = rawPts[(i + 1) % nRaw];
+                    if ((pPrev[0] === pCurr[0] && pCurr[0] === pNext[0]) || (pPrev[1] === pCurr[1] && pCurr[1] === pNext[1])) {
+                        continue;
                     }
-                    activeHoverOrderId = orderId;
-                    document.querySelectorAll(`.q-cell[data-order-id="${orderId}"]`).forEach(c => c.classList.add('hovered'));
-                } else if (!orderId && activeHoverOrderId) {
-                    document.querySelectorAll(`.q-cell[data-order-id="${activeHoverOrderId}"]`).forEach(c => c.classList.remove('hovered'));
-                    activeHoverOrderId = null;
+                    cleanPts.push(pCurr);
                 }
-            });
 
-            daysGrid.addEventListener('mouseleave', () => {
-                if (activeHoverOrderId) {
-                    document.querySelectorAll(`.q-cell[data-order-id="${activeHoverOrderId}"]`).forEach(c => c.classList.remove('hovered'));
-                    activeHoverOrderId = null;
+                const n = cleanPts.length;
+                if (n >= 3) {
+                    let loopCmds = [];
+                    for (let i = 0; i < n; i++) {
+                        const pPrev = cleanPts[(i - 1 + n) % n];
+                        const pCurr = cleanPts[i];
+                        const pNext = cleanPts[(i + 1) % n];
+
+                        const v1 = [pPrev[0] - pCurr[0], pPrev[1] - pCurr[1]];
+                        const v2 = [pNext[0] - pCurr[0], pNext[1] - pCurr[1]];
+                        const len1 = Math.hypot(v1[0], v1[1]);
+                        const len2 = Math.hypot(v2[0], v2[1]);
+                        if (len1 === 0 || len2 === 0) continue;
+
+                        const actR = Math.min(r, len1 / 2.0, len2 / 2.0);
+                        const startPt = [pCurr[0] + v1[0] / len1 * actR, pCurr[1] + v1[1] / len1 * actR];
+                        const endPt = [pCurr[0] + v2[0] / len2 * actR, pCurr[1] + v2[1] / len2 * actR];
+
+                        if (i === 0) {
+                            loopCmds.push(`M ${startPt[0].toFixed(1)} ${startPt[1].toFixed(1)}`);
+                        } else {
+                            loopCmds.push(`L ${startPt[0].toFixed(1)} ${startPt[1].toFixed(1)}`);
+                        }
+                        loopCmds.push(`Q ${pCurr[0]} ${pCurr[1]} ${endPt[0].toFixed(1)} ${endPt[1].toFixed(1)}`);
+                    }
+                    loopCmds.push("Z");
+                    fullPathD.push(loopCmds.join(" "));
                 }
-            });
+            }
+        }
+        return fullPathD.join(" ");
+    }
+
+    let currentHoveredOrderId = null;
+
+    function clearOrderContour() {
+        const path = document.getElementById('orderContourPath');
+        if (path) {
+            path.setAttribute('d', '');
+            path.style.filter = 'none';
+        }
+        currentHoveredOrderId = null;
+    }
+
+    function highlightOrderPerimeter(orderId) {
+        if (!orderId || document.body.classList.contains('in-move-mode')) return;
+        const daysGrid = document.querySelector('.days-grid');
+        const pathEl = document.getElementById('orderContourPath');
+        if (!daysGrid || !pathEl) return;
+
+        const cells = Array.from(daysGrid.querySelectorAll(`.q-cell[data-order-id="${orderId}"]`));
+        if (cells.length === 0) {
+            clearOrderContour();
+            return;
         }
 
-        document.querySelectorAll('.day-cell').forEach(dayEl => {
-            dayEl.addEventListener('click', (e) => {
-                if (e.target.closest('.q-cell') || e.target.closest('.order-start-badge') || e.target.closest('.cross-indicators')) return;
-                const occupiedCells = dayEl.querySelectorAll('.q-cell:not(.empty)');
-                if (occupiedCells.length > 0) {
-                    const firstOrderId = occupiedCells[0].dataset.orderId;
-                    if (firstOrderId) handleOrderClick(firstOrderId, e);
-                }
-            });
+        currentHoveredOrderId = orderId;
+
+        let glowColor = '#3b82f6';
+        if (cells[0].classList.contains('order-border-1')) glowColor = '#f59e0b';
+        else if (cells[0].classList.contains('order-border-2')) glowColor = '#10b981';
+        else if (cells[0].classList.contains('order-border-3')) glowColor = '#ec4899';
+        else if (cells[0].classList.contains('order-border-4')) glowColor = '#8b5cf6';
+        else if (cells[0].classList.contains('order-border-5')) glowColor = '#f97316';
+
+        const gridRect = daysGrid.getBoundingClientRect();
+        const daySet = new Set();
+        const coords = [];
+
+        cells.forEach(c => {
+            const dEl = c.closest('.day-cell');
+            if (dEl && !daySet.has(dEl)) {
+                daySet.add(dEl);
+                const r = dEl.getBoundingClientRect();
+                const col = Math.round((r.left - gridRect.left) / r.width);
+                const row = Math.round((r.top - gridRect.top) / r.height);
+                coords.push([col, row, r.width, r.height]);
+            }
         });
+
+        if (coords.length > 0) {
+            const cellW = coords[0][2];
+            const cellH = coords[0][3];
+            const xyCoords = coords.map(c => [c[0], c[1]]);
+            const dStr = getRoundedUnionSvgPath(xyCoords, cellW, cellH, 12);
+
+            pathEl.setAttribute('d', dStr);
+            pathEl.setAttribute('stroke', glowColor);
+            pathEl.style.filter = `drop-shadow(0 0 10px ${glowColor})`;
+        }
+    }
+
+    // =========================================================
+    // 2. NATIVE DRAG & DROP С АКТИВАЦИЕЙ ПО КНОПКЕ
+    // =========================================================
+    function dateToAbs(dateStr, q) {
+        if (!dateStr) return 0;
+        const p = dateStr.split('-');
+        return Math.floor(new Date(Date.UTC(p[0], p[1]-1, p[2])).getTime()/86400000) * 4 + parseInt(q, 10) - 1;
+    }
+
+    function absToDateAndQ(absQ) {
+        const dStr = new Date(Math.floor(absQ/4) * 86400000).toISOString().split('T')[0];
+        return { date: dStr, q: (absQ % 4) + 1 };
+    }
+
+    function renderProjectedSvg(newStartAbs, totalQuarters, isValid) {
+        const daysGrid = document.querySelector('.days-grid');
+        const projPath = document.getElementById('orderProjectedPath');
+        if (!daysGrid || !projPath) return;
+
+        const gridRect = daysGrid.getBoundingClientRect();
+        const coords = [];
+        const color = isValid ? '#3b82f6' : '#ef4444';
+
+        document.querySelectorAll('.day-cell').forEach(dEl => {
+            const dStr = dEl.dataset.date;
+            if (!dStr) return;
+            const dStartAbs = dateToAbs(dStr, 1);
+            const dEndAbs = dStartAbs + 3;
+            const orderEndAbs = newStartAbs + totalQuarters - 1;
+
+            if (dStartAbs <= orderEndAbs && dEndAbs >= newStartAbs) {
+                const r = dEl.getBoundingClientRect();
+                const col = Math.round((r.left - gridRect.left) / r.width);
+                const row = Math.round((r.top - gridRect.top) / r.height);
+                coords.push([col, row, r.width, r.height]);
+            }
+        });
+
+        if (coords.length > 0) {
+            const cellW = coords[0][2];
+            const cellH = coords[0][3];
+            const xyCoords = coords.map(c => [c[0], c[1]]);
+            const dStr = getRoundedUnionSvgPath(xyCoords, cellW, cellH, 12);
+
+            projPath.setAttribute('d', dStr);
+            projPath.setAttribute('stroke', color);
+            projPath.setAttribute('fill', isValid ? 'rgba(59, 130, 246, 0.25)' : 'rgba(239, 68, 68, 0.25)');
+            projPath.style.filter = `drop-shadow(0 0 12px ${color})`;
+        } else {
+            projPath.setAttribute('d', '');
+        }
+    }
+
+    let movingOrderData = null;
+    let dragOccupiedMap = {};
+
+    window.enterCalendarMoveMode = async function(orderId) {
+        clearOrderContour();
+        let orderObj = ORDERS_MAP.find(o => o.id == orderId);
+        if (!orderObj) {
+            try {
+                const res = await fetch('/order/' + orderId);
+                const data = await res.json();
+                if (data && !data.error) {
+                    orderObj = {
+                        id: data.id, num: data.order_number || data.id, name: data.name,
+                        qty: data.quantity || 0, type: data.order_type,
+                        start_date: data.start_date, start_q: data.start_q,
+                        end_date: data.end_date || data.start_date, end_q: data.end_q || 4,
+                        stages: data.stages || []
+                    };
+                }
+            } catch(e) {}
+        }
+        if (!orderObj) return alert('Заказ не найден');
+
+        movingOrderData = orderObj;
+
+        document.body.classList.add('in-move-mode');
+        const bar = document.getElementById('moveControlBar');
+        if (bar) {
+            bar.style.setProperty('display', 'flex', 'important');
+            document.getElementById('moveInfoText').innerHTML = `Режим переноса: перетащите заказ <b>#${orderObj.num}</b> на новую дату`;
+        }
+
+        document.querySelectorAll(`.q-cell[data-order-id="${orderId}"]`).forEach(c => {
+            c.classList.add('floating-order-cell');
+        });
+
+        try {
+            const res = await fetch(`/api/occupied?order_type=${orderObj.type}&exclude_id=${orderId}`);
+            const slots = await res.json();
+            dragOccupiedMap = {};
+            slots.forEach(s => {
+                let st = dateToAbs(s.start_date, s.start_q);
+                let en = dateToAbs(s.end_date, s.end_q);
+                for (let i = st; i <= en; i++) dragOccupiedMap[i] = true;
+            });
+        } catch(e) {}
+    };
+
+    window.exitCalendarMoveMode = function() {
+        document.body.classList.remove('in-move-mode');
+        document.body.classList.remove('is-dragging-order');
+        
+        const bar = document.getElementById('moveControlBar');
+        if (bar) bar.style.setProperty('display', 'none', 'important');
+
+        document.querySelectorAll('.floating-order-cell').forEach(c => {
+            c.classList.remove('floating-order-cell');
+            c.classList.remove('drag-hidden');
+        });
+
+        const projPath = document.getElementById('orderProjectedPath');
+        if (projPath) projPath.setAttribute('d', '');
+
+        movingOrderData = null;
+        clearOrderContour();
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const daysGrid = document.querySelector('.days-grid');
+        if (!daysGrid) return;
+
+        let hoverTimer = null;
+        
+        // --- УМНАЯ ПОДСВЕТКА (HOVER) ---
+        daysGrid.addEventListener('mousemove', (e) => {
+            if (document.body.classList.contains('in-move-mode') || justDropped) return; 
+            
+            let targetOrderId = null;
+            const exactCell = e.target.closest('.q-cell[data-order-id], .order-start-badge');
+
+            if (exactCell) {
+                // Если навели прямо на цветную ячейку заказа
+                targetOrderId = exactCell.dataset.orderId || (exactCell.getAttribute('onclick') ? exactCell.getAttribute('onclick').match(/\d+/)[0] : null);
+            } else {
+                // Если навели на пустую ячейку или заголовок внутри дня
+                const dayCell = e.target.closest('.day-cell');
+                if (dayCell) {
+                    const orderCells = Array.from(dayCell.querySelectorAll('.q-cell[data-order-id]'));
+                    if (orderCells.length > 0) {
+                        const uniqueOrders = [...new Set(orderCells.map(c => c.dataset.orderId))];
+                        if (uniqueOrders.length === 1) {
+                            // В дне только один заказ - подсвечиваем его
+                            targetOrderId = uniqueOrders[0];
+                        } else {
+                            // СТЫК ЗАКАЗОВ: В дне несколько заказов
+                            // Если мы уже подсвечивали один из них, оставляем его (эффект "прилипания")
+                            if (currentHoveredOrderId && uniqueOrders.includes(currentHoveredOrderId)) {
+                                targetOrderId = currentHoveredOrderId;
+                            } else {
+                                // Иначе подсвечиваем первый попавшийся
+                                targetOrderId = uniqueOrders[0];
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (targetOrderId) {
+                clearTimeout(hoverTimer);
+                hoverTimer = null;
+                if (currentHoveredOrderId !== targetOrderId) {
+                    highlightOrderPerimeter(targetOrderId);
+                }
+            } else {
+                // Мышка ушла на день без заказов вообще
+                if (!hoverTimer && currentHoveredOrderId) {
+                    hoverTimer = setTimeout(() => {
+                        clearOrderContour();
+                    }, 50); 
+                }
+            }
+        });
+
+        daysGrid.addEventListener('mouseleave', () => {
+            if (document.body.classList.contains('in-move-mode') || justDropped) return;
+            clearTimeout(hoverTimer);
+            clearOrderContour();
+        });
+
+        // --- УМНЫЙ DRAG & DROP (Захват за пустые ячейки) ---
+        let isDragging = false;
+        let dragStartX = 0, dragStartY = 0;
+        let dragOffsetQ = 0;
+        let dragTargetStartAbs = null;
+        let dragValid = false;
+
+        daysGrid.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return; 
+            if (!document.body.classList.contains('in-move-mode')) return; 
+            if (!movingOrderData) return;
+
+            let oId = null;
+            let clickedAbs = null;
+
+            const exactCell = e.target.closest('.q-cell[data-order-id], .order-start-badge');
+            if (exactCell) {
+                oId = exactCell.dataset.orderId || (exactCell.getAttribute('onclick') ? exactCell.getAttribute('onclick').match(/\d+/)[0] : null);
+                const qCell = exactCell.closest('.q-cell');
+                if (qCell && qCell.dataset.date && qCell.dataset.q) {
+                    clickedAbs = dateToAbs(qCell.dataset.date, qCell.dataset.q);
+                }
+            } else {
+                // Позволяем схватить заказ за пустую ячейку в его дне
+                const dayCell = e.target.closest('.day-cell');
+                if (dayCell) {
+                    const orderCells = Array.from(dayCell.querySelectorAll('.q-cell[data-order-id]'));
+                    const uniqueOrders = [...new Set(orderCells.map(c => c.dataset.orderId))];
+                    if (uniqueOrders.includes(String(movingOrderData.id))) {
+                        oId = movingOrderData.id;
+                        const emptyCell = e.target.closest('.q-cell');
+                        if (emptyCell && emptyCell.dataset.date && emptyCell.dataset.q) {
+                            clickedAbs = dateToAbs(emptyCell.dataset.date, emptyCell.dataset.q);
+                        } else {
+                            clickedAbs = dateToAbs(dayCell.dataset.date, 1);
+                        }
+                    }
+                }
+            }
+
+            if (oId != movingOrderData.id) return; 
+
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+
+            const orderStartAbs = dateToAbs(movingOrderData.start_date, movingOrderData.start_q);
+            if (!clickedAbs) clickedAbs = orderStartAbs;
+            dragOffsetQ = clickedAbs - orderStartAbs;
+
+            
+            // Задержка для мобильных устройств (чтобы не блокировать скролл)
+            if (e.pointerType === 'touch') {
+                let touchTimer = setTimeout(() => {
+                    isDragging = true;
+                    document.body.classList.add('is-dragging-order');
+                    document.querySelectorAll(`.q-cell[data-order-id="${movingOrderData.id}"]`).forEach(c => c.classList.add('drag-hidden'));
+                    document.addEventListener('pointermove', onPointerMove, {passive: false});
+                    document.addEventListener('pointerup', onPointerUp);
+                }, 400);
+                
+                const cancelTouch = () => {
+                    clearTimeout(touchTimer);
+                    document.removeEventListener('pointermove', cancelTouch);
+                    document.removeEventListener('pointerup', cancelTouch);
+                };
+                document.addEventListener('pointermove', cancelTouch, {once: true});
+                document.addEventListener('pointerup', cancelTouch, {once: true});
+            } else {
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', onPointerUp);
+            }
+        });
+
+        function onPointerMove(e) {
+            if (e.pointerType === 'touch' && isDragging) {
+                e.preventDefault(); // Блокируем скролл только когда реально тащим
+            }
+            if (!isDragging) {
+                if (Math.abs(e.clientX - dragStartX) > 5 || Math.abs(e.clientY - dragStartY) > 5) {
+                    isDragging = true;
+                    document.body.classList.add('is-dragging-order');
+                    
+                    document.querySelectorAll(`.q-cell[data-order-id="${movingOrderData.id}"]`).forEach(c => {
+                        c.classList.add('drag-hidden');
+                    });
+                } else {
+                    return;
+                }
+            }
+
+            const projPath = document.getElementById('orderProjectedPath');
+            if (projPath) projPath.style.display = 'none';
+            
+            const elements = document.elementsFromPoint(e.clientX, e.clientY);
+            let targetCell = elements.find(el => el && el.classList && el.classList.contains('q-cell'));
+            
+            if (projPath) projPath.style.display = 'block';
+
+            if (targetCell && targetCell.dataset.date && targetCell.dataset.q) {
+                const pointerAbs = dateToAbs(targetCell.dataset.date, targetCell.dataset.q);
+                const newStartAbs = pointerAbs - dragOffsetQ;
+                
+                const oldStartAbs = dateToAbs(movingOrderData.start_date, movingOrderData.start_q);
+                const oldEndAbs = dateToAbs(movingOrderData.end_date, movingOrderData.end_q);
+                const totalQuarters = Math.max(1, oldEndAbs - oldStartAbs + 1);
+                const newEndAbs = newStartAbs + totalQuarters - 1;
+
+                dragValid = true;
+                for (let q = newStartAbs; q <= newEndAbs; q++) {
+                    if (dragOccupiedMap[q]) {
+                        dragValid = false;
+                        break;
+                    }
+                }
+
+                dragTargetStartAbs = newStartAbs;
+                renderProjectedSvg(newStartAbs, totalQuarters, dragValid);
+            }
+        }
+
+        async function onPointerUp(e) {
+            justDropped = true;
+            setTimeout(() => justDropped = false, 300);
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+
+            if (isDragging) {
+                isDragging = false;
+                document.body.classList.remove('is-dragging-order');
+                
+                if (dragValid && dragTargetStartAbs !== null) {
+                    const newStart = absToDateAndQ(dragTargetStartAbs);
+                    const oldStartAbs = dateToAbs(movingOrderData.start_date, movingOrderData.start_q);
+                    
+                    if (dragTargetStartAbs !== oldStartAbs) {
+                        try {
+                            const res = await fetch('/api/move_order', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    order_id: movingOrderData.id,
+                                    new_start_date: newStart.date,
+                                    new_start_q: newStart.q
+                                })
+                            });
+                            const data = await res.json();
+                            if (data && data.success) {
+                                window.location.reload();
+                                return;
+                            } else {
+                                alert(data.error || 'Ошибка при перемещении заказа');
+                            }
+                        } catch(err) {
+                            alert('Ошибка сервера при перемещении');
+                        }
+                    }
+                }
+                
+                document.querySelectorAll(`.q-cell[data-order-id="${movingOrderData.id}"]`).forEach(c => {
+                    c.classList.remove('drag-hidden');
+                });
+                const projPath = document.getElementById('orderProjectedPath');
+                if (projPath) projPath.setAttribute('d', '');
+            }
+            
+            dragTargetStartAbs = null;
+        }
     });
 </script>
 {% endblock %}
