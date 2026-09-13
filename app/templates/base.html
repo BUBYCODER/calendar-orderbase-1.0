@@ -29,6 +29,16 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <div class="global-notification-bar" id="globalNotificationBar">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'error' if category == 'error' else 'success' }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
     <header class="header">
         <div class="header-inner">
             <div style="display: flex; align-items: center; gap: 20px;">
@@ -48,13 +58,7 @@
     </header>
 
     <main class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+        
         {% block content %}{% endblock %}
     </main>
 
@@ -90,6 +94,20 @@
             <div id="orderModalBody"></div>
         </div>
     </div>
+<!-- Модальное окно подтверждения удаления -->
+    <div class="confirm-modal-overlay" id="customConfirmOverlay" onclick="if(event.target===this) closeCustomConfirm();">
+        <div class="confirm-modal-content">
+            <h3 style="margin-top:0; margin-bottom:12px; font-size:18px; font-weight:700;" id="customConfirmTitle">Подтверждение</h3>
+            <p id="customConfirmText" style="margin-bottom:20px; color:#94a3b8; font-size:14px; line-height: 1.5;"></p>
+            <div class="confirm-modal-buttons" style="display: flex; gap: 12px; justify-content: center;">
+                <button type="button" class="btn btn-outline" id="customConfirmCancel" onclick="closeCustomConfirm();">Отмена</button>
+                <button type="button" class="btn btn-danger" id="customConfirmOk">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Контейнер для фиксированных неоновых уведомлений -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <script>
         function toggleDarkMode() {
@@ -107,6 +125,14 @@
         function openDevModal() { document.getElementById('devModal').classList.add('active'); }
         function closeDevModal() { document.getElementById('devModal').classList.remove('active'); }
 
+        function triggerOrderMove(orderId) {
+            if (window.location.pathname === '/' && typeof enterCalendarMoveMode === 'function') {
+                enterCalendarMoveMode(orderId);
+            } else {
+                window.location.href = '/?move_order=' + orderId;
+            }
+        }
+        
         function openOrderModal(orderId) {
             fetch('/order/' + orderId).then(r => r.json()).then(data => {
                 if (data.error) { alert(data.error); return; }
@@ -127,6 +153,7 @@
                 }
                 
                 const typeName = data.order_type === 'sample' ? 'ОБРАЗЕЦ' : 'ОСНОВНАЯ ПАРТИЯ';
+                const typeClass = data.order_type === 'sample' ? 'order-type-sample' : 'order-type-batch';
                 const commentHtml = data.comment ? `
                     <div style="margin-bottom: 15px; padding: 10px 12px; background: rgba(245,158,11,0.1); border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 13px;">
                         <strong>Комментарий:</strong> ${data.comment}
@@ -134,9 +161,9 @@
                 ` : '';
 
                 body.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-                        <h2 style="margin: 0;">#${data.order_number || data.id} ${data.name}</h2>
-                        <span style="font-size:12px; background:#e5e7eb; color:#333; padding:2px 6px; border-radius:4px; font-weight:700;">${typeName}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 10px; margin-bottom: 15px;">
+                        <h2 style="margin: 0; font-size: 20px; line-height: 1.3;">#${data.order_number || data.id} ${data.name}</h2>
+                        <span class="order-type-badge ${typeClass}" style="flex-shrink: 0; margin-top: 2px;">${typeName}</span>
                     </div>
                     <p style="margin-bottom: 12px; font-size: 14px; line-height: 1.6;">
                         <strong>Клиент/Бренд:</strong> ${data.client || 'Не указан'} <br>
@@ -156,9 +183,9 @@
                     
                     <div style="margin-top:25px; display:flex; gap:10px; flex-wrap:wrap;">
                         <a href="/orders/${data.id}?from=calendar" class="btn btn-outline" style="flex:1; min-width:130px; text-align:center;">Карточка заказа</a>
-                        <button type="button" class="btn btn-primary" onclick="closeOrderModal(); enterCalendarMoveMode(${data.id});" style="flex:1; min-width:150px; text-align:center; font-weight:700;">Перенести</button>
+                        <button type="button" class="btn btn-primary" onclick="closeOrderModal(); triggerOrderMove(${data.id});" style="flex:1; min-width:150px; text-align:center; font-weight:700;">Перенести</button>
                         <a href="/edit_order/${data.id}" class="btn btn-outline" style="flex:1; min-width:120px; text-align:center;">Редактировать</a>
-                        <form action="/delete_order/${data.id}" method="POST" style="flex:1; min-width:100px; display:flex;" onsubmit="return confirm('Вы уверены, что хотите полностью удалить этот заказ и все его этапы?');">
+                        <form action="/delete_order/${data.id}" method="POST" style="flex:1; min-width:100px; display:flex;" data-confirm="Вы уверены, что хотите полностью удалить этот заказ и все его этапы?">
                             <button type="submit" class="btn btn-danger" style="width:100%;">Удалить</button>
                         </form>
                     </div>
@@ -168,20 +195,103 @@
         }
         function closeOrderModal() { document.getElementById('orderModal').classList.remove('active'); }
         function closeModalOutside(event) { if (event.target === document.getElementById('orderModal')) closeOrderModal(); }
-        document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeOrderModal(); closeDevModal(); } });
-    // Автоматическое плавное скрытие уведомлений через 3.5 секунды
+
+        // --- ЛОГИКА КАСТОМНОГО ПОДТВЕРЖДЕНИЯ ---
+        let pendingConfirmAction = null;
+
+        function customConfirm(message, onConfirm, title="Подтверждение", confirmBtnText="Удалить") {
+            const overlay = document.getElementById('customConfirmOverlay');
+            if (!overlay) {
+                if (confirm(message)) onConfirm();
+                return;
+            }
+            document.getElementById('customConfirmTitle').textContent = title;
+            document.getElementById('customConfirmText').textContent = message;
+            const btnOk = document.getElementById('customConfirmOk');
+            btnOk.textContent = confirmBtnText;
+            
+            pendingConfirmAction = onConfirm;
+            overlay.classList.add('active');
+            
+            btnOk.onclick = function() {
+                const actionToExecute = pendingConfirmAction;
+                closeCustomConfirm();
+                if (typeof actionToExecute === 'function') {
+                    actionToExecute();
+                }
+            };
+        }
+
+        function closeCustomConfirm() {
+            const overlay = document.getElementById('customConfirmOverlay');
+            if (overlay) overlay.classList.remove('active');
+            pendingConfirmAction = null;
+        }
+
+        // Функция подтверждения удаления черновика
+        function confirmDeleteDraft(draftId) {
+            customConfirm('Удалить этот черновик?', function() {
+                const form = document.getElementById('delete-draft-form-' + draftId);
+                if (form) {
+                    form.submit();
+                }
+            });
+        }
+
+        // Перехват отправки форм с атрибутом data-confirm
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            if (form && form.hasAttribute('data-confirm')) {
+                e.preventDefault();
+                const msg = form.getAttribute('data-confirm');
+                customConfirm(msg, function() {
+                    form.removeAttribute('data-confirm');
+                    form.submit();
+                });
+            }
+        });
+
+        // Закрытие всех окон по Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeOrderModal();
+                closeDevModal();
+                closeCustomConfirm();
+            }
+        });
+
+        // Фиксированное неоновое уведомление сверху экрана
+        // Плавное скрытие уведомления через 3.5 секунды
         document.addEventListener('DOMContentLoaded', function() {
-            var alerts = document.querySelectorAll('.alert');
+            var alerts = document.querySelectorAll('.global-notification-bar .alert');
             if (alerts.length > 0) {
                 setTimeout(function() {
                     alerts.forEach(function(el) {
+                        el.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
                         el.style.opacity = '0';
-                        el.style.transform = 'translateY(-8px)';
-                        setTimeout(function() { el.remove(); }, 500);
+                        el.style.transform = 'translateY(-10px)';
+                        setTimeout(function() { el.remove(); }, 400);
                     });
                 }, 3500);
             }
         });
+
+        // Функция показа уведомления из JS (если вызывается без перезагрузки)
+        function showToast(msg, type='success') {
+            var bar = document.getElementById('globalNotificationBar');
+            if (!bar) return;
+            bar.innerHTML = '';
+            var el = document.createElement('div');
+            el.className = 'alert alert-' + (type === 'error' ? 'error' : 'success');
+            el.textContent = msg;
+            bar.appendChild(el);
+            setTimeout(function() {
+                el.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(-10px)';
+                setTimeout(function() { el.remove(); }, 400);
+            }, 3500);
+        }
     </script>
 </body>
 </html>

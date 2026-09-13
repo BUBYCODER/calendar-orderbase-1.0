@@ -46,9 +46,9 @@
                 <td>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <a href="/add_order?draft_id={{ d.id }}" class="btn btn-primary btn-action-sm">Продолжить</a>
-                        <form action="/delete_draft/{{ d.id }}" method="POST" style="margin: 0; display: inline-flex; align-items: center;" onsubmit="return confirm('Удалить этот черновик?');">
-                            <button type="submit" class="btn btn-danger btn-action-sm">Удалить</button>
-                        </form>
+                        <form id="delete-draft-form-{{ d.id }}" action="/delete_draft/{{ d.id }}" method="POST" style="margin: 0; display: inline-flex; align-items: center;">
+                        <button type="button" class="btn btn-danger btn-action-sm" onclick="confirmDeleteDraft('{{ d.id }}')">Удалить</button>
+                    </form>
                     </div>
                 </td>
             </tr>

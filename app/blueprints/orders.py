@@ -211,28 +211,47 @@ def add_order_view():
                     amount=amount, created_at=creation_date, positions=positions
                 )
 
-            # Сохранение файлов к позициям (Пункт 10 ТЗ)
+            # Сохранение файлов к позициям (включая файлы из черновика)
             try:
+                loaded_draft_id = safe_int(request.form.get('loaded_draft_id'), default=None)
+                draft_files = {}
+                if loaded_draft_id:
+                    try:
+                        draft_obj = database.get_draft(loaded_draft_id)
+                        if draft_obj and draft_obj.get('data_json'):
+                            draft_data = json.loads(draft_obj['data_json'])
+                            draft_files = draft_data.get('draft_files', {})
+                        database.delete_draft(loaded_draft_id)
+                    except: pass
+
                 upload_folder = current_app.config.get('UPLOAD_FOLDER', 'app/static/uploads')
                 os.makedirs(upload_folder, exist_ok=True)
                 for p in positions:
                     p_idx = p.get('pos_index', 1)
-                    p_files = request.files.getlist(f'pos_files_{p_idx}')
+                    input_name = f'pos_files_{p_idx}'
+                    
+                    # Новые файлы
+                    p_files = request.files.getlist(input_name)
                     for file in p_files:
                         if file and file.filename:
                             orig_name = file.filename
                             ext = os.path.splitext(orig_name)[1].lower()
-                        if ext not in {'.png', '.jpg', '.jpeg', '.pdf', '.ai', '.psd', '.cdr', '.svg', '.tif', '.tiff', '.zip', '.rar'}:
-                            continue
+                            if ext not in {'.png', '.jpg', '.jpeg', '.pdf', '.ai', '.psd', '.cdr', '.svg', '.tif', '.tiff', '.zip', '.rar'}:
+                                continue
                             disk_name = f"{order_id}_{uuid.uuid4().hex[:8]}{ext}"
                             file.save(os.path.join(upload_folder, disk_name))
                             database.add_order_file(order_id, orig_name, f"uploads/{disk_name}", position_index=int(p_idx))
+                    
+                    # Файлы из черновика
+                    if input_name in draft_files:
+                        for d_file in draft_files[input_name]:
+                            database.add_order_file(order_id, d_file['name'], d_file['path'], position_index=int(p_idx))
+                            
+                # Общие файлы заказа из черновика
+                if 'order_files' in draft_files:
+                    for d_file in draft_files['order_files']:
+                        database.add_order_file(order_id, d_file['name'], d_file['path'], position_index=1)
             except: pass
-
-            loaded_draft_id = safe_int(request.form.get('loaded_draft_id'), default=None)
-            if loaded_draft_id:
-                try: database.delete_draft(loaded_draft_id)
-                except: pass
 
             flash(f'Заказ #{order_number} успешно создан', 'success')
             return redirect(url_for('orders.order_detail', order_id=order_id))
@@ -391,23 +410,63 @@ def delete_file_view(file_id):
 @orders_bp.route('/api/drafts', methods=['GET', 'POST'])
 def api_drafts():
     if request.method == 'POST':
-        data = None
-        try: data = request.get_json(silent=True)
-        except: pass
-        if not data and request.data:
-            try: data = json.loads(request.data.decode('utf-8'))
-            except: pass
-        if not data and request.form:
-            if 'payload' in request.form:
-                try: data = json.loads(request.form['payload'])
-                except: data = {}
-            else: data = dict(request.form)
+        data = {}
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            payload_str = request.form.get('payload', '{}')
+            try: data = json.loads(payload_str)
+            except: data = {}
+            
+            upload_folder = current_app.config.get('UPLOAD_FOLDER', 'app/static/uploads')
+            drafts_folder = os.path.join(upload_folder, 'drafts')
+            os.makedirs(drafts_folder, exist_ok=True)
+            
+            draft_files = data.get('draft_files', {})
+            
+            for key in request.files:
+                files = request.files.getlist(key)
+                for file in files:
+                    if file and file.filename:
+                        orig_name = file.filename
+                        ext = os.path.splitext(orig_name)[1].lower()
+                        if ext not in {'.png', '.jpg', '.jpeg', '.pdf', '.ai', '.psd', '.cdr', '.svg', '.tif', '.tiff', '.zip', '.rar'}:
+                            continue
+                        
+                        if key not in draft_files:
+                            draft_files[key] = []
+                        
+                        # ДЕДУПЛИКАЦИЯ: не добавляем файл с таким же именем повторно
+                        existing_names = [item['name'] for item in draft_files[key] if isinstance(item, dict) and 'name' in item]
+                        if orig_name in existing_names:
+                            continue
+                            
+                        disk_name = f"draft_{uuid.uuid4().hex[:8]}{ext}"
+                        rel_path = f"uploads/drafts/{disk_name}"
+                        file.save(os.path.join(drafts_folder, disk_name))
+                        
+                        draft_files[key].append({'name': orig_name, 'path': rel_path})
+            
+            # Очистка возможных старых дубликатов
+            for key in draft_files:
+                seen = set()
+                unique_list = []
+                for item in draft_files[key]:
+                    n = item.get('name') if isinstance(item, dict) else str(item)
+                    if n not in seen:
+                        seen.add(n)
+                        unique_list.append(item)
+                draft_files[key] = unique_list
 
-        data = data or {}
-        title = data.get('title', 'Без названия').strip() or 'Без названия'
+            data['draft_files'] = draft_files
+        else:
+            try: data = request.get_json(silent=True) or {}
+            except: pass
+
+        title = data.get('title', 'Черновик').strip() or 'Черновик'
         draft_id = safe_int(data.get('draft_id'), default=None)
         saved_id = database.save_draft(title, json.dumps(data, ensure_ascii=False), draft_id=draft_id)
-        return jsonify({'success': True, 'draft_id': saved_id})
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            flash('Черновик сохранён', 'success')
+        return jsonify({'success': True, 'draft_id': saved_id, 'draft_files': data.get('draft_files', {})})
     return jsonify(database.get_all_drafts())
 
 @orders_bp.route('/api/drafts/<int:draft_id>', methods=['GET', 'DELETE'])

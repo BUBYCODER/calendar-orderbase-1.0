@@ -44,7 +44,7 @@
                 <div style="display:flex; gap:10px;">
                     <a href="#" class="btn btn-outline" onclick="openOrderModal('{{ group.id }}'); return false;">Посмотреть детали</a>
                     <a href="/edit_order/{{ group.id }}" class="btn btn-primary">Редактировать</a>
-                    <form action="/delete_order/{{ group.id }}" method="POST" style="margin-left:auto;" onsubmit="return confirm('Точно удалить заказ со всеми этапами?');">
+                    <form action="/delete_order/{{ group.id }}" method="POST" style="margin-left:auto;" data-confirm="Точно удалить заказ со всеми этапами?">
                         <button type="submit" class="btn btn-danger">Удалить</button>
                     </form>
                 </div>

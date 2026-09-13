@@ -501,6 +501,7 @@ function stepSizeInput(btn, step) {
         container.appendChild(card);
         updateDeleteButtonsVisibility();
         recalcGlobalTotal();
+        if (typeof renderDraftFiles === 'function') setTimeout(renderDraftFiles, 20);
     }
 
     // Замена селекта на текстовое поле при выборе "Свой вариант"
@@ -1076,10 +1077,11 @@ function stepSizeInput(btn, step) {
         document.getElementById('orderForm').submit();
     }
 
-    // Живое автосохранение черновика и восстановление
+    // --- Система черновиков и файлов ---
     let currentDraftId = new URLSearchParams(window.location.search).get('draft_id') || null;
     let isOrderSubmitted = false;
     let autoSaveTimer = null;
+    window.currentDraftFiles = {};
 
     if (currentDraftId) {
         const inp = document.getElementById('loaded_draft_id');
@@ -1100,16 +1102,24 @@ function stepSizeInput(btn, step) {
             if (s.value) hasSelectedOption = true;
         });
 
-        return Boolean(name || client || comment || contact || amount > 0 || stagesCount > 0 || totalQty > 0 || hasSelectedOption);
+        let hasFiles = (window.currentDraftFiles && Object.keys(window.currentDraftFiles).length > 0);
+        document.querySelectorAll('input[type="file"]').forEach(inp => {
+            if (inp.files && inp.files.length > 0) hasFiles = true;
+        });
+
+        return Boolean(name || client || comment || contact || amount > 0 || stagesCount > 0 || totalQty > 0 || hasSelectedOption || hasFiles);
     }
 
     function getDraftTitle() {
         const name = (document.getElementById('order-name') ? document.getElementById('order-name').value.trim() : '');
         const client = (document.getElementById('client_name') ? document.getElementById('client_name').value.trim() : '');
-        const num = (document.getElementById('order_number') ? document.getElementById('order_number').value : '');
         if (name) return name;
         if (client) return 'Заказ ' + client;
-        return 'Черновик #' + (num || '1');
+        
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const dateStr = now.toLocaleDateString();
+        return `Черновик от ${dateStr} ${timeStr}`;
     }
 
     function serializeFormState() {
@@ -1129,37 +1139,147 @@ function stepSizeInput(btn, step) {
         return fields;
     }
 
+    // Отрисовка прикрепленных файлов (с кликабельной ссылкой и дедупликацией)
+    function renderDraftFiles() {
+        if (!window.currentDraftFiles || Object.keys(window.currentDraftFiles).length === 0) return;
+        
+        document.querySelectorAll('.draft-files-container').forEach(el => el.remove());
+        
+        for (const [inputName, files] of Object.entries(window.currentDraftFiles)) {
+            if (!files || files.length === 0) continue;
+            
+            // Надежный поиск инпута файла позиции
+            let input = document.querySelector(`input[name="${inputName}"]`);
+            if (!input && inputName.startsWith('pos_files_')) {
+                const pNum = inputName.replace('pos_files_', '');
+                const card = document.getElementById(`pos-card-${pNum}`) || document.querySelector('.position-card');
+                if (card) input = card.querySelector('input[type="file"]');
+            }
+            if (!input) input = document.querySelector('input[type="file"]');
+            
+            if (input && input.parentNode) {
+                let container = input.parentNode.querySelector('.draft-files-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.className = 'draft-files-container';
+                    container.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;';
+                    input.parentNode.appendChild(container);
+                }
+                container.innerHTML = '';
+                
+                const renderedNames = new Set();
+                files.forEach(f => {
+                    const fName = (typeof f === 'object' && f.name) ? f.name : String(f);
+                    const fPath = (typeof f === 'object' && f.path) ? f.path : '';
+                    if (renderedNames.has(fName)) return; // Исключаем дубликаты на клиенте
+                    renderedNames.add(fName);
+
+                    const badge = document.createElement('div');
+                    badge.style.cssText = 'background: rgba(37,99,235,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;';
+                    
+                    const link = document.createElement('a');
+                    link.href = fPath ? `/static/${fPath}` : '#';
+                    link.target = '_blank';
+                    link.style.cssText = 'color: #93c5fd; text-decoration: none; cursor: pointer;';
+                    link.textContent = `${fName} (в черновике)`;
+                    link.onmouseover = () => link.style.textDecoration = 'underline';
+                    link.onmouseout = () => link.style.textDecoration = 'none';
+                    
+                    const delBtn = document.createElement('button');
+                    delBtn.type = 'button';
+                    delBtn.style.cssText = 'background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 15px; font-weight: bold; line-height: 1; padding: 0 2px;';
+                    delBtn.innerHTML = '&times;';
+                    delBtn.title = 'Удалить этот файл из черновика';
+                    delBtn.onclick = () => removeDraftFile(inputName, fPath || fName);
+                    
+                    badge.appendChild(link);
+                    badge.appendChild(delBtn);
+                    container.appendChild(badge);
+                });
+            }
+        }
+    }
+
+    window.removeDraftFile = function(inputName, pathOrName) {
+        if (!window.currentDraftFiles || !window.currentDraftFiles[inputName]) return;
+        window.currentDraftFiles[inputName] = window.currentDraftFiles[inputName].filter(f => {
+            const p = (typeof f === 'object' && f.path) ? f.path : '';
+            const n = (typeof f === 'object' && f.name) ? f.name : String(f);
+            return p !== pathOrName && n !== pathOrName;
+        });
+        if (window.currentDraftFiles[inputName].length === 0) {
+            delete window.currentDraftFiles[inputName];
+        }
+        renderDraftFiles();
+        saveCurrentAsDraft(true);
+    };
+
+    // Сохранение черновика с редиректом на страницу Заказы
     async function saveCurrentAsDraft(isSilent = false) {
         if (isOrderSubmitted) return;
         if (!hasAnyFormData()) {
-            if (!isSilent) alert('Форма пуста, сохранять нечего.');
+            if (!isSilent) showToast('Форма пуста, сохранять нечего.', 'error');
             return;
         }
 
         const draftObj = {
             draft_id: currentDraftId,
             title: getDraftTitle(),
-            fields: serializeFormState()
+            fields: serializeFormState(),
+            draft_files: window.currentDraftFiles || {}
         };
 
-        const payload = JSON.stringify(draftObj);
-
         try {
-            const res = await fetch('/api/drafts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: payload,
-                keepalive: true
+            let res;
+            let hasNewFiles = false;
+            document.querySelectorAll('input[type="file"]').forEach(inp => {
+                if (inp.files && inp.files.length > 0) hasNewFiles = true;
             });
+
+            if (!isSilent || hasNewFiles) {
+                const formData = new FormData();
+                formData.append('payload', JSON.stringify(draftObj));
+                
+                document.querySelectorAll('input[type="file"]').forEach(inp => {
+                    if (inp.files && inp.files.length > 0) {
+                        for (let i = 0; i < inp.files.length; i++) {
+                            formData.append(inp.name, inp.files[i]);
+                        }
+                    }
+                });
+
+                res = await fetch('/api/drafts', {
+                    method: 'POST',
+                    body: formData
+                });
+            } else {
+                res = await fetch('/api/drafts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(draftObj),
+                    keepalive: true
+                });
+            }
+            
             const data = await res.json();
             if (data && data.success) {
                 currentDraftId = data.draft_id;
                 const inp = document.getElementById('loaded_draft_id');
                 if (inp) inp.value = currentDraftId;
-                if (!isSilent) alert('Черновик сохранён!');
+                
+                if (data.draft_files) {
+                    window.currentDraftFiles = data.draft_files;
+                }
+
+                // ПРИ ЯВНОМ НАЖАТИИ «В ЧЕРНОВИКИ» — РЕДИРЕКТ НА СТРАНИЦУ ЗАКАЗОВ!
+                if (!isSilent) {
+                    isOrderSubmitted = true;
+                    window.location.href = '/orders?filter=drafts';
+                    return;
+                }
             }
         } catch(e) {
-            if (!isSilent) alert('Ошибка при сохранении черновика');
+            if (!isSilent) showToast('Ошибка при сохранении черновика', 'error');
         }
     }
 
@@ -1173,9 +1293,10 @@ function stepSizeInput(btn, step) {
         }, 1000);
     }
 
+    // Инициализация формы при старте
     document.addEventListener('DOMContentLoaded', () => {
         loadOccupiedSlots();
-        addPositionCard();
+        addPositionCard(); // ПОЗИЦИЯ #1 ВСЕГДА СОЗДАЕТСЯ ПО УМОЛЧАНИЮ
 
         const formEl = document.getElementById('orderForm');
         if (formEl) {
@@ -1203,20 +1324,26 @@ function stepSizeInput(btn, step) {
             }
         });
 
-        setTimeout(loadDraftIfPresent, 250);
+        setTimeout(loadDraftIfPresent, 100);
     });
 
+    // Загрузка сохраненного черновика (?draft_id=X)
     async function loadDraftIfPresent() {
         if (!currentDraftId) return;
         try {
             const res = await fetch('/api/drafts/' + currentDraftId);
             const draft = await res.json();
             if (!draft || !draft.data_json) return;
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-error';
-            alertDiv.innerHTML = '<b>Черновик восстановлен!</b> Пожалуйста, прикрепите макеты/файлы заново, так как они не сохраняются в черновике.';
-            document.querySelector('.form-container').prepend(alertDiv);
+            
             const data = JSON.parse(draft.data_json);
+            window.currentDraftFiles = data.draft_files || {};
+            
+            if (Object.keys(window.currentDraftFiles).length > 0) {
+                showToast('Черновик и прикрепленные файлы восстановлены.', 'success');
+            } else {
+                showToast('Черновик восстановлен.', 'success');
+            }
+
             const f = data.fields || {};
 
             if (f.order_number) document.getElementById('order_number').value = f.order_number;
@@ -1363,6 +1490,12 @@ function stepSizeInput(btn, step) {
             } else {
                 calculateSchedule();
             }
+
+            // Отрисовываем файлы сразу при загрузке черновика
+            renderDraftFiles();
+            setTimeout(renderDraftFiles, 50);
+            setTimeout(renderDraftFiles, 200);
+
         } catch(e) {
             console.error("Error loading draft:", e);
         }

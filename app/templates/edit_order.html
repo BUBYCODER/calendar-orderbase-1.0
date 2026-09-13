@@ -533,7 +533,7 @@
     }
 
     function deleteExistingFile(fileId) {
-        if (!confirm('Удалить этот файл из заказа?')) return;
+        customConfirm('Удалить этот файл из заказа?', () => { const form = document.createElement('form'); form.method = 'POST'; form.action = `/delete_file/${fileId}`; const input = document.createElement('input'); input.type = 'hidden'; input.name = 'order_id'; input.value = '{{ order.id }}'; form.appendChild(input); document.body.appendChild(form); form.submit(); }); return;
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `/delete_file/${fileId}`;

@@ -11,11 +11,9 @@
         <a href="/?year={{ start_parts[0] }}&month={{ start_parts[1]|int if '-' in (order.start_date or '') else 1 }}&tab={{ order.order_type or 'batch' }}" class="btn btn-outline" style="font-weight:600;">
             Открыть в календаре
         </a>
-        <a href="/?year={{ start_parts[0] }}&month={{ start_parts[1]|int if '-' in (order.start_date or '') else 1 }}&tab={{ order.order_type or 'batch' }}&move_order={{ order.id }}" class="btn btn-outline btn-move-link" style="font-weight:600; border-color:#3b82f6; color:#60a5fa;" title="Интерактивно перенести этот заказ на сетке календаря">
-            Переместить
-        </a>
+        <a href="/?year={{ start_parts[0] }}&month={{ start_parts[1]|int if '-' in (order.start_date or '') else 1 }}&tab={{ order.order_type or 'batch' }}&move_order={{ order.id }}" class="btn btn-outline btn-move-link" style="font-weight:600; border-color:#3b82f6; color:#60a5fa;" title="Интерактивно перенести этот заказ на сетке календаря">Перенести</a>
         <a href="/edit_order/{{ order.id }}" class="btn btn-primary">Редактировать</a>
-        <form action="/delete_order/{{ order.id }}" method="POST" style="display:inline; margin:0;" onsubmit="return confirm('Вы уверены, что хотите полностью удалить этот заказ?');">
+        <form action="/delete_order/{{ order.id }}" method="POST" style="display:inline; margin:0;" data-confirm="Вы уверены, что хотите полностью удалить этот заказ?">
             <button type="submit" class="btn btn-danger">Удалить</button>
         </form>
     </div>
@@ -66,7 +64,7 @@
     <h3 style="margin-bottom: 15px; color: #2563eb;">Состав заказа</h3>
     <div style="display: grid; gap: 15px;">
         {% for it in items %}
-        <div style="background: rgba(0,0,0,0.02); border: 1px solid #e5e7eb; border-radius: 6px; padding: 15px;">
+        <div class="position-detail-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <strong style="font-size: 15px; color: #1e40af;">Позиция #{{ it.position_index }}: {{ it.product_name }}</strong>
                 <span style="font-weight: 700; color: #2563eb;">{{ it.total_quantity }} шт.</span>
@@ -80,33 +78,33 @@
 
             <!-- Таблица 9 размеров без Onesize -->
             <div style="overflow-x: auto; margin-bottom: 8px;">
-                <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 12px; background: #fff;">
+                <table class="size-table">
                     <thead>
-                        <tr style="background: #f1f5f9;">
-                            <th style="border: 1px solid #cbd5e1; padding: 4px;">3XS</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 4px;">2XS</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 4px;">XS</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 4px;">S</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 4px;">M</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 4px;">L</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 4px;">XL</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 4px;">2XL</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 4px;">3XL</th>
-                            <th style="border: 1px solid #cbd5e1; padding: 4px; background: #eff6ff; color: #1d4ed8;">ИТОГО</th>
+                        <tr>
+                            <th>3XS</th>
+                            <th>2XS</th>
+                            <th>XS</th>
+                            <th>S</th>
+                            <th>M</th>
+                            <th>L</th>
+                            <th>XL</th>
+                            <th>2XL</th>
+                            <th>3XL</th>
+                            <th class="pos-total-cell">ИТОГО</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_3xs }}</td>
-                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_2xs }}</td>
-                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_xs }}</td>
-                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_s }}</td>
-                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_m }}</td>
-                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_l }}</td>
-                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_xl }}</td>
-                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_2xl }}</td>
-                            <td style="border: 1px solid #cbd5e1; padding: 4px;">{{ it.size_3xl }}</td>
-                            <td style="border: 1px solid #cbd5e1; padding: 4px; font-weight: 700; background: #eff6ff; color: #1d4ed8;">{{ it.total_quantity }} шт.</td>
+                            <td>{{ it.size_3xs }}</td>
+                            <td>{{ it.size_2xs }}</td>
+                            <td>{{ it.size_xs }}</td>
+                            <td>{{ it.size_s }}</td>
+                            <td>{{ it.size_m }}</td>
+                            <td>{{ it.size_l }}</td>
+                            <td>{{ it.size_xl }}</td>
+                            <td>{{ it.size_2xl }}</td>
+                            <td>{{ it.size_3xl }}</td>
+                            <td class="pos-total-cell">{{ it.total_quantity }} шт.</td>
                         </tr>
                     </tbody>
                 </table>
