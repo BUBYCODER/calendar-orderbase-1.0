@@ -50,8 +50,7 @@
                         {% if current_tab == 'batch' and day.start_order_badge_text %}
                             <span class="order-start-badge" 
                                   title="Старт заказа: {{ day.start_order_name }} ({{ day.start_order_badge_text }})" 
-                                  onclick="handleOrderClick('{{ day.start_order_id }}', event)" 
-                                  style="cursor: pointer; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 85px;">
+                                  onclick="handleOrderClick('{{ day.start_order_id }}', event)">
                                 {{ day.start_order_badge_text }}
                             </span>
                         {% endif %}
@@ -83,7 +82,7 @@
                                 {% if q.show_text %}
                                     <span class="q-text">
                                         {% if current_tab == 'sample' %}
-                                            #{{ q.order_number }} ({{ q.quantity }} шт.)
+                                            #{{ q.order_number }}
                                         {% else %}
                                             #{{ q.order_number }} {{ q.stage_type }}
                                         {% endif %}

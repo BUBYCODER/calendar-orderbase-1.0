@@ -44,7 +44,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #
 .day-header { grid-column: 1 / 3; grid-row: 1; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 8px; z-index: 10; overflow: hidden; }
 .day-number { font-weight: 600; font-size: 14px; color: #374151; flex-shrink: 0; }
 .day-today .day-number { color: #2563eb; font-weight: 700; }
-.order-start-badge { background-color: #1e293b; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; cursor: pointer; display: inline-block; max-width: 90px; }
+.order-start-badge { background-color: #1e293b; color: #ffffff; font-size: 12.5px; font-weight: 500; padding: 1px 7px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; cursor: pointer; display: inline-flex; align-items: center; line-height: 1.25; letter-spacing: 0.2px; }
 .q-grid-main { grid-column: 1 / 3; grid-row: 2 / 4; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 0px; padding: 0px 4px 4px 4px; }
 .q-cell { border-radius: 4px; margin: 2px; position: relative; cursor: pointer; background-color: #cbd5e1; color: #111827 !important; border: 2px solid transparent; box-sizing: border-box; }
 .q-cell.empty { background-color: #e2e8f0; cursor: default; border-color: transparent !important; }
@@ -551,13 +551,26 @@ body.dark-theme { background: #121212; color: #e5e7eb; }
 .stage-dot-вто { background-color: #fbd48e; }
 .stage-bg-вто { background-color: #fbd48e !important; }
 
-/* 1. Убираем мыло со шрифтов (снижаем жирность с 800 до 600, убираем капс) */
+/* 1. Четкий, читаемый бейдж номера заказа в заголовке дня (без мыла и без излишней жирности) */
 .order-start-badge, .dark-theme .order-start-badge {
-    font-weight: 600 !important;
-    font-size: 10px !important;
+    font-weight: 500 !important;
+    font-size: 12.5px !important;
     text-transform: none !important;
-    padding: 2px 6px !important;
+    padding: 1px 7px !important;
     border-radius: 4px !important;
+    line-height: 1.25 !important;
+    letter-spacing: 0.2px !important;
+    box-shadow: none !important;
+}
+.dark-theme .order-start-badge {
+    background-color: #1e2638 !important;
+    color: #f1f5f9 !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+}
+.dark-theme .order-start-badge:hover {
+    background-color: #27334d !important;
+    border-color: #60a5fa !important;
+    color: #ffffff !important;
 }
 .q-text, .dark-theme .q-text {
     font-weight: 600 !important;
@@ -1251,28 +1264,34 @@ html.dark-theme body {
     color: #ffffff !important;
 }
 
-/* Бейдж-счётчик с математическим центрированием цифры */
-.tab-badge {
-    display: inline-grid !important;
-    place-items: center !important;
-    place-content: center !important;
-    min-width: 22px !important;
-    height: 22px !important;
-    padding: 0 5px !important;
-    border-radius: 11px !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
+/* Счётчики табов без кружков и рамок: ровное центрирование чисел с текстом */
+.tab-badge, .tab-count {
+    display: inline-block !important;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-width: 0 !important;
+    height: auto !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
     line-height: 1 !important;
-    text-align: center !important;
+    vertical-align: middle !important;
     font-variant-numeric: tabular-nums !important;
-    box-sizing: border-box !important;
-    background: rgba(37, 99, 235, 0.12) !important;
-    color: #1d4ed8 !important;
 }
-.tab-btn.active .tab-badge {
-    background: rgba(255, 255, 255, 0.28) !important;
+.tab-btn .tab-badge,
+.tab-btn .tab-count {
+    color: #2563eb !important;
+    opacity: 0.8 !important;
+}
+.tab-btn.active .tab-badge,
+.tab-btn.active .tab-count {
     color: #ffffff !important;
-    border: 1px solid rgba(255, 255, 255, 0.45) !important;
+    opacity: 0.9 !important;
 }
 
 /* ТЁМНАЯ ТЕМА: Стильные неактивные табы */
@@ -1286,13 +1305,20 @@ html.dark-theme body {
     border-color: #3b82f6 !important;
     color: #bfdbfe !important;
 }
-.dark-theme .tab-badge {
-    background: #232d3f !important;
-    color: #93c5fd !important;
-    border: 1px solid #3b82f6 !important;
+.dark-theme .tab-badge,
+.dark-theme .tab-count {
+    color: #60a5fa !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    opacity: 0.85 !important;
+}
+.dark-theme .tab-btn:hover .tab-badge,
+.dark-theme .tab-btn:hover .tab-count {
+    color: #bfdbfe !important;
 }
 
-/* ТЁМНАЯ ТЕМА: Активный таб — НЕОНОВАЯ РАМКА без глухой синей заливки */
+/* ТЁМНАЯ ТЕМА: Активный таб */
 .dark-theme .tab-btn.active {
     background: #1c2536 !important;
     border: 2px solid #3b82f6 !important;
@@ -1303,11 +1329,13 @@ html.dark-theme body {
 .dark-theme .tab-btn.active:hover {
     background: #222d42 !important;
 }
-.dark-theme .tab-btn.active .tab-badge {
-    background: rgba(59, 130, 246, 0.25) !important;
-    color: #ffffff !important;
-    border: 1.5px solid #60a5fa !important;
-    box-shadow: 0 0 8px rgba(96, 165, 250, 0.5) !important;
+.dark-theme .tab-btn.active .tab-badge,
+.dark-theme .tab-btn.active .tab-count {
+    color: #93c5fd !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
 }
 
 /* =========================================================
@@ -1762,4 +1790,213 @@ body.in-move-mode .floating-order-cell:active {
     color: #fca5a5 !important;
     border: 1px solid rgba(239, 68, 68, 0.35) !important;
     box-shadow: 0 0 12px rgba(239, 68, 68, 0.15) !important;
+}
+
+/* =========================================================
+   FILE UPLOADS & DRAFT FILES (MODERN ERP STYLING)
+   ========================================================= */
+.pos-files-section {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(128, 128, 128, 0.25);
+}
+
+.file-upload-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.file-input-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    border: 0 !important;
+    opacity: 0 !important;
+}
+
+.btn-file-upload {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    padding: 6px 14px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: #e2e8f0 !important;
+    background: #21262d !important;
+    border: 1px solid #30363d !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    user-select: none !important;
+    line-height: 1.4 !important;
+}
+
+.btn-file-upload:hover {
+    background: #30363d !important;
+    border-color: #8b949e !important;
+    color: #ffffff !important;
+}
+
+body:not(.dark-theme) .btn-file-upload {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+body:not(.dark-theme) .btn-file-upload:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.file-upload-hint {
+    font-size: 11px !important;
+    color: #8b949e !important;
+}
+
+body:not(.dark-theme) .file-upload-hint {
+    color: #64748b !important;
+}
+
+.pos-files-list {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-top: 8px !important;
+}
+
+.draft-file-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 5px 10px !important;
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    color: #c9d1d9 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    transition: all 0.15s ease !important;
+}
+
+.draft-file-badge:hover {
+    border-color: #58a6ff !important;
+    background: #1c2128 !important;
+}
+
+body:not(.dark-theme) .draft-file-badge {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+body:not(.dark-theme) .draft-file-badge:hover {
+    background: #f1f5f9 !important;
+    border-color: #2563eb !important;
+}
+
+.draft-file-badge .file-icon {
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    color: #8b949e !important;
+}
+
+body:not(.dark-theme) .draft-file-badge .file-icon {
+    color: #64748b !important;
+}
+
+.draft-file-link {
+    color: #58a6ff !important;
+    text-decoration: none !important;
+    font-weight: 500 !important;
+    max-width: 320px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+}
+
+.draft-file-link:hover {
+    text-decoration: underline !important;
+    color: #79b8ff !important;
+}
+
+body:not(.dark-theme) .draft-file-link {
+    color: #2563eb !important;
+}
+
+body:not(.dark-theme) .draft-file-link:hover {
+    color: #1d4ed8 !important;
+}
+
+.draft-file-tag {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    padding: 2px 7px !important;
+    border-radius: 4px !important;
+    white-space: nowrap !important;
+    background: rgba(88, 166, 255, 0.12) !important;
+    color: #58a6ff !important;
+    border: 1px solid rgba(88, 166, 255, 0.25) !important;
+    line-height: 1.2 !important;
+}
+
+body:not(.dark-theme) .draft-file-tag {
+    background: rgba(37, 99, 235, 0.08) !important;
+    color: #2563eb !important;
+    border: 1px solid rgba(37, 99, 235, 0.2) !important;
+}
+
+.draft-file-del-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 20px !important;
+    height: 20px !important;
+    padding: 0 !important;
+    margin-left: 2px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 4px !important;
+    color: #8b949e !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    flex-shrink: 0 !important;
+}
+
+.draft-file-del-btn:hover {
+    background: rgba(248, 81, 73, 0.15) !important;
+    color: #f85149 !important;
+}
+
+body:not(.dark-theme) .draft-file-del-btn {
+    color: #64748b !important;
+}
+
+body:not(.dark-theme) .draft-file-del-btn:hover {
+    background: rgba(220, 38, 38, 0.1) !important;
+    color: #dc2626 !important;
+}
+
+.draft-files-banner {
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: #161b22;
+    border: 1px solid #30363d;
+}
+
+body:not(.dark-theme) .draft-files-banner {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
 }

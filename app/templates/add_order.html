@@ -137,7 +137,7 @@
                             <option value="6">6 дней</option>
                             <option value="7">7 дней</option>
                         </select>
-                        <span id="sample-dates-display" style="font-size: 13px; font-weight:600; color:#58a6ff;"></span>
+                        <span id="sample-dates-display" style="font-size: 13px; font-weight:600; color: #58a6ff;"></span>
                     </div>
                     <input type="hidden" name="sample_end_date" id="sample-end-date">
                     <input type="hidden" name="sample_end_q" id="sample-end-q">
@@ -190,33 +190,13 @@
 </div>
 
 <script>
-    const PRODUCTS_LIST = [
-        'Худи', 'Зип-худи', 'Свитшот', 'Полузамок', 'Олимпийка',
-        'Бомбер', 'Брюки', 'Футболка', 'Лонгслив', 'Майка', 'Шорты', 'Свой вариант'
-    ];
+    let PRODUCTS_LIST = [];
 
-    const PATTERNS_MAP = {
-        'Худи': ['Oversize', 'Boxy-fit', 'Regular'],
-        'Зип-худи': ['Oversize', 'Boxy-fit', 'Regular'],
-        'Свитшот': ['Oversize', 'Boxy-fit', 'Regular'],
-        'Полузамок': ['Oversize', 'Boxy-fit', 'Regular'],
-        'Олимпийка': ['Oversize', 'Boxy-fit', 'Regular'],
-        'Бомбер': ['Oversize', 'Boxy-fit', 'Regular'],
-        'Футболка': ['Oversize', 'Boxy-fit', 'Regular', 'Slim'],
-        'Лонгслив': ['Oversize', 'Boxy-fit', 'Regular', 'Slim'],
-        'Майка': ['Oversize', 'Boxy-fit', 'Regular', 'Slim'],
-        'Брюки': ['Джоггеры', 'Прямые', 'Oversize'],
-        'Шорты': ['Oversize']
-    };
+    let PATTERNS_MAP = {};
 
-    const FABRICS_LIST = ['3-х нитка Петля', '3-х нитка Начес', '2х нитка Петля', 'Кулирная гладь', 'Свой вариант'];
+    let FABRICS_LIST = [];
 
-    const DENSITIES_MAP = {
-        '3-х нитка Петля': ['340г', '420г', '500г'],
-        '3-х нитка Начес': ['340г'],
-        '2х нитка Петля': ['240г'],
-        'Кулирная гладь': ['190г', '220г', '240г', '300г']
-    };
+    let DENSITIES_MAP = {};
 
     const COLORS_LIST = ['Черный', 'Белый', 'Молочный', 'Темно-синий', 'Василек', 'Бордовый', 'Свой вариант'];
 
@@ -492,9 +472,17 @@ function stepSizeInput(btn, step) {
             </div>
 
             <!-- Файлы к позиции -->
-            <div>
-                <label class="field-title" style="display:block; margin-bottom:4px;">Макеты / файлы позиции:</label>
-                <input type="file" name="pos_files_${pId}" multiple accept="image/*,.pdf,.ai,.psd">
+            <div class="pos-files-section">
+                <label class="field-title" style="display:block; margin-bottom:6px; font-weight:600;">Макеты / файлы позиции #${pId}:</label>
+                <div class="file-upload-wrapper">
+                    <label class="btn-file-upload" for="pos_file_input_${pId}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                        <span>Выбрать файлы</span>
+                    </label>
+                    <input type="file" name="pos_files_${pId}" id="pos_file_input_${pId}" class="file-input-hidden" multiple accept="image/*,.pdf,.ai,.psd,.cdr,.svg,.zip,.rar" onchange="handleNewFileSelected(${pId})">
+                    <span class="file-upload-hint">PNG, JPG, PDF, AI, PSD, CDR, ZIP</span>
+                </div>
+                <div id="pos-files-list-${pId}" class="pos-files-list"></div>
             </div>
         `;
 
@@ -632,7 +620,7 @@ function stepSizeInput(btn, step) {
             </select>
             <input type="number" class="custom-duration" step="0.25" min="0.25" style="display:none; width:70px; padding:5px;" oninput="calculateSchedule();" placeholder="Дней">
             <button type="button" class="btn btn-outline" style="padding:4px 8px; font-size:12px;" onclick="openIntervalPicker(this)">Интервал</button>
-            <span class="stage-dates-display" style="font-size:13px; font-weight:600; margin-left:10px; color:#58a6ff;"></span>
+            <span class="stage-dates-display" style="font-size:13px; font-weight:600; margin-left:10px; color: #58a6ff;"></span>
             
             <input type="hidden" name="start_date[]" class="start-date-input">
             <input type="hidden" name="start_q[]" class="start-q-input">
@@ -681,33 +669,23 @@ function stepSizeInput(btn, step) {
     let localOccupiedMapForPicker = {};
 
     async function loadOccupiedSlots() {
-        
-        document.querySelectorAll('.position-card').forEach((c) => {
-            const pId = c.dataset.pid;
-            const prod = c.querySelector(`[name="product_${pId}"]`);
-            const pat = c.querySelector(`[name="pattern_${pId}"]`);
-            const fab = c.querySelector(`[name="fabric_${pId}"]`);
-            if (prod && pat && fab) {
-                if (!prod.value.trim() || !pat.value.trim() || !fab.value.trim()) {
-                    isValid = false;
-                    if (!firstInvalid) firstInvalid = prod;
-                    c.style.border = '1px solid #dc2626';
-                } else {
-                    c.style.border = '';
-                }
-            }
-        });
-        const type = document.getElementById('order_type').value;
-        const res = await fetch(`/api/occupied?order_type=${type}`);
-        const slots = await res.json();
-        dbOccupiedMap = {};
-        slots.forEach(s => {
-            let start = dateToAbs(s.start_date, s.start_q);
-            let end = dateToAbs(s.end_date, s.end_q);
-            for (let q = start; q <= end; q++) dbOccupiedMap[q] = true;
-        });
-        if (type === 'sample') calculateSampleSchedule();
-        else calculateSchedule();
+        try {
+            const typeEl = document.getElementById('order_type');
+            const type = typeEl ? typeEl.value : 'standard';
+            const res = await fetch(`/api/occupied?order_type=${type}`);
+            if (!res.ok) return;
+            const slots = await res.json();
+            dbOccupiedMap = {};
+            slots.forEach(s => {
+                let start = dateToAbs(s.start_date, s.start_q);
+                let end = dateToAbs(s.end_date, s.end_q);
+                for (let q = start; q <= end; q++) dbOccupiedMap[q] = true;
+            });
+            if (type === 'sample') calculateSampleSchedule();
+            else calculateSchedule();
+        } catch (err) {
+            console.error('Error loading occupied slots:', err);
+        }
     }
 
     // Пункт 5 ТЗ: Автоматический расчет финиша в форме
@@ -803,30 +781,17 @@ function stepSizeInput(btn, step) {
     }
 
     function toggleOrderTypeUI() {
-        
-        document.querySelectorAll('.position-card').forEach((c) => {
-            const pId = c.dataset.pid;
-            const prod = c.querySelector(`[name="product_${pId}"]`);
-            const pat = c.querySelector(`[name="pattern_${pId}"]`);
-            const fab = c.querySelector(`[name="fabric_${pId}"]`);
-            if (prod && pat && fab) {
-                if (!prod.value.trim() || !pat.value.trim() || !fab.value.trim()) {
-                    isValid = false;
-                    if (!firstInvalid) firstInvalid = prod;
-                    c.style.border = '1px solid #dc2626';
-                } else {
-                    c.style.border = '';
-                }
-            }
-        });
-        const type = document.getElementById('order_type').value;
+        const typeEl = document.getElementById('order_type');
+        const type = typeEl ? typeEl.value : 'standard';
+        const batchUi = document.getElementById('batch-ui');
+        const sampleUi = document.getElementById('sample-ui');
         if (type === 'sample') {
-            document.getElementById('batch-ui').style.display = 'none';
-            document.getElementById('sample-ui').style.display = 'block';
+            if (batchUi) batchUi.style.display = 'none';
+            if (sampleUi) sampleUi.style.display = 'block';
             calculateSampleSchedule();
         } else {
-            document.getElementById('batch-ui').style.display = 'block';
-            document.getElementById('sample-ui').style.display = 'none';
+            if (batchUi) batchUi.style.display = 'block';
+            if (sampleUi) sampleUi.style.display = 'none';
             calculateSchedule();
         }
     }
@@ -1021,13 +986,30 @@ function stepSizeInput(btn, step) {
                 embList.push(`${et} (${ef}) — ${eq} шт.`);
             });
 
+            // Прикрепленные файлы позиции для сводки
+            let posFilesList = [];
+            if (window.currentDraftFiles && window.currentDraftFiles[`pos_files_${pId}`]) {
+                window.currentDraftFiles[`pos_files_${pId}`].forEach(f => {
+                    const fn = typeof f === 'object' ? (f.name || f.file_name) : String(f);
+                    if (fn && !posFilesList.includes(fn)) posFilesList.push(fn);
+                });
+            }
+            const fInp = c.querySelector(`input[name="pos_files_${pId}"]`);
+            if (fInp && fInp.files && fInp.files.length > 0) {
+                for (let fi = 0; fi < fInp.files.length; fi++) {
+                    const newFn = fInp.files[fi].name;
+                    if (!posFilesList.includes(newFn)) posFilesList.push(newFn + ' (новый)');
+                }
+            }
+
             positionsHtml += `
                 <div style="background:rgba(255,255,255,0.03); border:1px solid #30363d; border-radius:6px; padding:10px; margin-bottom:8px;">
-                    <div style="font-weight:600; color:#58a6ff; margin-bottom:4px;">Позиция #${idx+1}: ${prod || '—'} (${posQty})</div>
+                    <div style="font-weight:600; color: #58a6ff; margin-bottom:4px;">Позиция #${idx+1}: ${prod || '—'} (${posQty})</div>
                     <div style="font-size:12px; color:#8b949e;">
                         <strong>Крой:</strong> ${pat || '—'} | <strong>Полотно:</strong> ${fab || '—'} | <strong>Плотность:</strong> ${den || '—'} | <strong>Цвет:</strong> ${col || '—'}
                     </div>
                     ${embList.length ? `<div style="font-size:12px; margin-top:4px; color:#f59e0b;"><strong>Нанесения:</strong> ${embList.join(', ')}</div>` : ''}
+                    ${posFilesList.length ? `<div style="font-size:12px; margin-top:4px; color: #58a6ff;"><strong>📎 Файлы:</strong> ${posFilesList.join(', ')}</div>` : ''}
                 </div>
             `;
         });
@@ -1059,7 +1041,7 @@ function stepSizeInput(btn, step) {
             <h4 style="margin-top:15px; margin-bottom:8px;">График производства:</h4>
             <div style="margin-bottom:6px;">
                 <strong>${document.getElementById('order-start-display').textContent}</strong> 
-                ${finishDisplay ? `<span style="color:#58a6ff; font-weight:600;"> ${finishDisplay}</span>` : ''}
+                ${finishDisplay ? `<span style="color: #58a6ff; font-weight:600;"> ${finishDisplay}</span>` : ''}
             </div>
             <ul style="padding-left:20px; margin:0;">${stagesHtml}</ul>
         `;
@@ -1081,6 +1063,8 @@ function stepSizeInput(btn, step) {
     let currentDraftId = new URLSearchParams(window.location.search).get('draft_id') || null;
     let isOrderSubmitted = false;
     let autoSaveTimer = null;
+    let isSavingDraft = false;
+    let pendingDraftPromise = null;
     window.currentDraftFiles = {};
 
     if (currentDraftId) {
@@ -1139,86 +1123,212 @@ function stepSizeInput(btn, step) {
         return fields;
     }
 
-    // Отрисовка прикрепленных файлов (с кликабельной ссылкой и дедупликацией)
-    function renderDraftFiles() {
-        if (!window.currentDraftFiles || Object.keys(window.currentDraftFiles).length === 0) return;
-        
-        document.querySelectorAll('.draft-files-container').forEach(el => el.remove());
-        
-        for (const [inputName, files] of Object.entries(window.currentDraftFiles)) {
-            if (!files || files.length === 0) continue;
-            
-            // Надежный поиск инпута файла позиции
-            let input = document.querySelector(`input[name="${inputName}"]`);
-            if (!input && inputName.startsWith('pos_files_')) {
-                const pNum = inputName.replace('pos_files_', '');
-                const card = document.getElementById(`pos-card-${pNum}`) || document.querySelector('.position-card');
-                if (card) input = card.querySelector('input[type="file"]');
-            }
-            if (!input) input = document.querySelector('input[type="file"]');
-            
-            if (input && input.parentNode) {
-                let container = input.parentNode.querySelector('.draft-files-container');
-                if (!container) {
-                    container = document.createElement('div');
-                    container.className = 'draft-files-container';
-                    container.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;';
-                    input.parentNode.appendChild(container);
-                }
-                container.innerHTML = '';
-                
-                const renderedNames = new Set();
-                files.forEach(f => {
-                    const fName = (typeof f === 'object' && f.name) ? f.name : String(f);
-                    const fPath = (typeof f === 'object' && f.path) ? f.path : '';
-                    if (renderedNames.has(fName)) return; // Исключаем дубликаты на клиенте
-                    renderedNames.add(fName);
+    // Вспомогательная функция для нормализации URL файла
+    function getFileUrl(fPath) {
+        if (!fPath) return '#';
+        if (fPath.startsWith('http://') || fPath.startsWith('https://')) return fPath;
+        let clean = fPath.replace(/^\/+/, '');
+        if (clean.startsWith('static/')) clean = clean.replace(/^static\//, '');
+        return '/static/' + clean;
+    }
 
-                    const badge = document.createElement('div');
-                    badge.style.cssText = 'background: rgba(37,99,235,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;';
-                    
-                    const link = document.createElement('a');
-                    link.href = fPath ? `/static/${fPath}` : '#';
-                    link.target = '_blank';
-                    link.style.cssText = 'color: #93c5fd; text-decoration: none; cursor: pointer;';
-                    link.textContent = `${fName} (в черновике)`;
-                    link.onmouseover = () => link.style.textDecoration = 'underline';
-                    link.onmouseout = () => link.style.textDecoration = 'none';
-                    
-                    const delBtn = document.createElement('button');
-                    delBtn.type = 'button';
-                    delBtn.style.cssText = 'background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 15px; font-weight: bold; line-height: 1; padding: 0 2px;';
-                    delBtn.innerHTML = '&times;';
-                    delBtn.title = 'Удалить этот файл из черновика';
-                    delBtn.onclick = () => removeDraftFile(inputName, fPath || fName);
-                    
-                    badge.appendChild(link);
-                    badge.appendChild(delBtn);
-                    container.appendChild(badge);
-                });
+    function decodeFilenameClient(name) {
+        if (!name || typeof name !== 'string') return '';
+        if (/[ÐÑ]/.test(name)) {
+            try {
+                const bytes = new Uint8Array([...name].map(c => c.charCodeAt(0) & 0xff));
+                const decoded = new TextDecoder('utf-8').decode(bytes);
+                if (decoded && !decoded.includes('\ufffd')) return decoded;
+            } catch(e) {}
+        }
+        return name;
+    }
+
+    // Создание бейджа файла для позиции
+    function createDraftFileBadge(inputName, fName, fPath, pId) {
+        fName = decodeFilenameClient(fName);
+        const badge = document.createElement('div');
+        badge.className = 'draft-file-badge saved-draft-file';
+        
+        const icon = document.createElement('span');
+        icon.className = 'file-icon';
+        icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>';
+        badge.appendChild(icon);
+
+        const link = document.createElement('a');
+        link.className = 'draft-file-link';
+        link.href = getFileUrl(fPath);
+        link.target = '_blank';
+        link.title = 'Нажмите, чтобы открыть файл: ' + fName;
+        link.textContent = fName;
+        badge.appendChild(link);
+
+        const tag = document.createElement('span');
+        tag.className = 'draft-file-tag';
+        tag.textContent = 'в черновике';
+        badge.appendChild(tag);
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'draft-file-del-btn';
+        delBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+        delBtn.title = 'Удалить этот файл из черновика';
+        delBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            removeDraftFile(inputName, fPath || fName);
+        };
+        badge.appendChild(delBtn);
+
+        return badge;
+    }
+
+    // Полная отрисовка всех файлов черновика непосредственно в позициях
+    function renderDraftFiles() {
+        const allDraftFiles = window.currentDraftFiles || {};
+        
+        // Очищаем существующие бейджи сохраненных файлов черновика в позициях
+        document.querySelectorAll('.pos-files-list').forEach(listEl => {
+            listEl.querySelectorAll('.saved-draft-file').forEach(el => el.remove());
+        });
+
+        for (const [inputName, files] of Object.entries(allDraftFiles)) {
+            if (!files || !Array.isArray(files) || files.length === 0) continue;
+
+            let pId = null;
+            if (inputName.startsWith('pos_files_')) {
+                pId = inputName.replace('pos_files_', '');
             }
+
+            // Находим целевой контейнер для позиции
+            let targetList = pId ? document.getElementById(`pos-files-list-${pId}`) : null;
+            if (!targetList && pId) {
+                const card = document.getElementById(`pos-card-${pId}`);
+                if (card) targetList = card.querySelector('.pos-files-list');
+            }
+            if (!targetList) {
+                targetList = document.querySelector('.pos-files-list');
+            }
+
+            const renderedInPos = new Set();
+
+            files.forEach(f => {
+                const fName = (typeof f === 'object' && (f.name || f.file_name)) ? (f.name || f.file_name) : String(f);
+                const fPath = (typeof f === 'object' && (f.path || f.file_path)) ? (f.path || f.file_path) : '';
+                if (!fName) return;
+
+                const uniquePosKey = `${fName}_${fPath}`;
+                if (renderedInPos.has(uniquePosKey)) return;
+                renderedInPos.add(uniquePosKey);
+
+                // Добавляем файл только в соответствующую позицию
+                if (targetList) {
+                    const badge = createDraftFileBadge(inputName, fName, fPath, pId);
+                    targetList.appendChild(badge);
+                }
+            });
         }
     }
 
+    // Мгновенное отображение выбранных через проводник файлов
+    window.handleNewFileSelected = function(pId) {
+        const input = document.getElementById(`pos_file_input_${pId}`) || document.querySelector(`input[name="pos_files_${pId}"]`);
+        if (!input) return;
+
+        const container = document.getElementById(`pos-files-list-${pId}`) || (input.closest('.position-card') ? input.closest('.position-card').querySelector('.pos-files-list') : null);
+        if (container) {
+            container.querySelectorAll('.new-selected-file-chip').forEach(el => el.remove());
+        }
+
+        if (input.files && input.files.length > 0) {
+            for (let i = 0; i < input.files.length; i++) {
+                const file = input.files[i];
+                const cleanName = decodeFilenameClient(file.name);
+                const sizeKb = Math.round(file.size / 1024);
+                const sizeStr = sizeKb > 1024 ? (sizeKb / 1024).toFixed(1) + ' МБ' : sizeKb + ' КБ';
+
+                const chip = document.createElement('div');
+                chip.className = 'draft-file-badge new-selected-file-chip';
+                chip.innerHTML = `
+                    <span class="file-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg></span>
+                    <span class="draft-file-link" style="cursor:default;" title="${cleanName}">${cleanName}</span>
+                    <span style="font-size:11px; opacity:0.8; white-space:nowrap;">(${sizeStr})</span>
+                    <span class="draft-file-tag" style="background:rgba(16,185,129,0.15); color:#10b981; border-color:rgba(16,185,129,0.3);">загружен</span>
+                `;
+                if (container) container.appendChild(chip);
+            }
+            // Автоматически сохраняем черновик с новыми файлами
+            triggerDraftSave(false);
+        }
+    };
+
+    // Удаление файла из черновика
     window.removeDraftFile = function(inputName, pathOrName) {
         if (!window.currentDraftFiles || !window.currentDraftFiles[inputName]) return;
         window.currentDraftFiles[inputName] = window.currentDraftFiles[inputName].filter(f => {
-            const p = (typeof f === 'object' && f.path) ? f.path : '';
-            const n = (typeof f === 'object' && f.name) ? f.name : String(f);
+            const p = (typeof f === 'object' && (f.path || f.file_path)) ? (f.path || f.file_path) : '';
+            const n = (typeof f === 'object' && (f.name || f.file_name)) ? (f.name || f.file_name) : String(f);
             return p !== pathOrName && n !== pathOrName;
         });
         if (window.currentDraftFiles[inputName].length === 0) {
             delete window.currentDraftFiles[inputName];
         }
         renderDraftFiles();
-        saveCurrentAsDraft(true);
+        triggerDraftSave(false);
     };
 
-    // Сохранение черновика с редиректом на страницу Заказы
-    async function saveCurrentAsDraft(isSilent = false) {
+    // Сериализованная очередь сохранения черновиков (предотвращает дублирование)
+    let hasPendingDraftSave = false;
+    let pendingSaveIsExplicit = false;
+
+    async function triggerDraftSave(isExplicit = false) {
         if (isOrderSubmitted) return;
+        if (isExplicit) pendingSaveIsExplicit = true;
+
+        if (isSavingDraft) {
+            hasPendingDraftSave = true;
+            return;
+        }
+
+        clearTimeout(autoSaveTimer);
+        isSavingDraft = true;
+
+        const btnSaveDraft = document.getElementById('btn-save-draft');
+        if (isExplicit && btnSaveDraft) {
+            btnSaveDraft.disabled = true;
+            btnSaveDraft.textContent = 'Сохранение...';
+        }
+
+        try {
+            await executeDraftSave(pendingSaveIsExplicit);
+            if (pendingSaveIsExplicit) {
+                isOrderSubmitted = true;
+                window.location.href = '/orders?filter=drafts';
+                return;
+            }
+        } catch (err) {
+            console.error('Draft save error:', err);
+            if (pendingSaveIsExplicit) {
+                if (btnSaveDraft) {
+                    btnSaveDraft.disabled = false;
+                    btnSaveDraft.textContent = 'В черновики';
+                }
+                showToast('Ошибка при сохранении черновика', 'error');
+            }
+        } finally {
+            isSavingDraft = false;
+            if (hasPendingDraftSave) {
+                hasPendingDraftSave = false;
+                const nextExplicit = pendingSaveIsExplicit;
+                pendingSaveIsExplicit = false;
+                triggerDraftSave(nextExplicit);
+            }
+        }
+    }
+
+    async function executeDraftSave(isExplicit = false) {
         if (!hasAnyFormData()) {
-            if (!isSilent) showToast('Форма пуста, сохранять нечего.', 'error');
+            if (isExplicit) showToast('Форма пуста, сохранять нечего.', 'error');
             return;
         }
 
@@ -1229,72 +1339,90 @@ function stepSizeInput(btn, step) {
             draft_files: window.currentDraftFiles || {}
         };
 
-        try {
-            let res;
-            let hasNewFiles = false;
+        let hasNewFiles = false;
+        document.querySelectorAll('input[type="file"]').forEach(inp => {
+            if (inp.files && inp.files.length > 0) hasNewFiles = true;
+        });
+
+        let res;
+        if (hasNewFiles || isExplicit) {
+            const formData = new FormData();
+            formData.append('payload', JSON.stringify(draftObj));
+            
             document.querySelectorAll('input[type="file"]').forEach(inp => {
-                if (inp.files && inp.files.length > 0) hasNewFiles = true;
+                if (inp.files && inp.files.length > 0) {
+                    for (let i = 0; i < inp.files.length; i++) {
+                        formData.append(inp.name, inp.files[i]);
+                    }
+                }
             });
 
-            if (!isSilent || hasNewFiles) {
-                const formData = new FormData();
-                formData.append('payload', JSON.stringify(draftObj));
-                
-                document.querySelectorAll('input[type="file"]').forEach(inp => {
-                    if (inp.files && inp.files.length > 0) {
-                        for (let i = 0; i < inp.files.length; i++) {
-                            formData.append(inp.name, inp.files[i]);
-                        }
-                    }
-                });
+            res = await fetch('/api/drafts', {
+                method: 'POST',
+                body: formData
+            });
+        } else {
+            res = await fetch('/api/drafts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(draftObj)
+            });
+        }
 
-                res = await fetch('/api/drafts', {
-                    method: 'POST',
-                    body: formData
-                });
-            } else {
-                res = await fetch('/api/drafts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(draftObj),
-                    keepalive: true
-                });
-            }
-            
-            const data = await res.json();
-            if (data && data.success) {
-                currentDraftId = data.draft_id;
-                const inp = document.getElementById('loaded_draft_id');
-                if (inp) inp.value = currentDraftId;
-                
-                if (data.draft_files) {
-                    window.currentDraftFiles = data.draft_files;
-                }
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+        if (data && data.success) {
+            currentDraftId = data.draft_id;
+            const inp = document.getElementById('loaded_draft_id');
+            if (inp) inp.value = currentDraftId;
 
-                // ПРИ ЯВНОМ НАЖАТИИ «В ЧЕРНОВИКИ» — РЕДИРЕКТ НА СТРАНИЦУ ЗАКАЗОВ!
-                if (!isSilent) {
-                    isOrderSubmitted = true;
-                    window.location.href = '/orders?filter=drafts';
-                    return;
-                }
+            // Обновляем адресную строку без перезагрузки, чтобы ID черновика сохранялся
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, '', '/add_order?draft_id=' + currentDraftId);
             }
-        } catch(e) {
-            if (!isSilent) showToast('Ошибка при сохранении черновика', 'error');
+
+            if (data.draft_files) {
+                window.currentDraftFiles = data.draft_files;
+                // Очищаем временные превью и перерисовываем постоянные бейджи файлов
+                document.querySelectorAll('.new-selected-file-chip').forEach(el => el.remove());
+                renderDraftFiles();
+            }
         }
     }
+
+    // Сохранение черновика при явном нажатии кнопки
+    window.saveCurrentAsDraft = function(isSilent = false) {
+        triggerDraftSave(!isSilent);
+    };
 
     function scheduleAutoSave() {
         if (isOrderSubmitted) return;
         clearTimeout(autoSaveTimer);
         autoSaveTimer = setTimeout(() => {
-            if (hasAnyFormData()) {
-                saveCurrentAsDraft(true);
+            if (!isOrderSubmitted && hasAnyFormData()) {
+                triggerDraftSave(false);
             }
-        }, 1000);
+        }, 1500);
+    }
+
+    
+    async function loadReferences() {
+        try {
+            const res = await fetch('/api/references');
+            const data = await res.json();
+            PRODUCTS_LIST = data.products || [];
+            PATTERNS_MAP = data.patterns || {};
+            FABRICS_LIST = data.fabrics || [];
+            DENSITIES_MAP = data.densities || {};
+        } catch (e) {
+            console.error('Failed to load references:', e);
+        }
     }
 
     // Инициализация формы при старте
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadReferences();
+
         loadOccupiedSlots();
         addPositionCard(); // ПОЗИЦИЯ #1 ВСЕГДА СОЗДАЕТСЯ ПО УМОЛЧАНИЮ
 
@@ -1307,19 +1435,19 @@ function stepSizeInput(btn, step) {
         document.addEventListener('click', (e) => {
             const link = e.target.closest('a');
             if (link && link.href && !link.target && !link.hasAttribute('download')) {
-                if (!isOrderSubmitted && hasAnyFormData()) {
+                if (!isOrderSubmitted && !isSavingDraft && hasAnyFormData()) {
                     saveCurrentAsDraft(true);
                 }
             }
         });
 
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden' && !isOrderSubmitted && hasAnyFormData()) {
+            if (document.visibilityState === 'hidden' && !isOrderSubmitted && !isSavingDraft && hasAnyFormData()) {
                 saveCurrentAsDraft(true);
             }
         });
         window.addEventListener('pagehide', () => {
-            if (!isOrderSubmitted && hasAnyFormData()) {
+            if (!isOrderSubmitted && !isSavingDraft && hasAnyFormData()) {
                 saveCurrentAsDraft(true);
             }
         });

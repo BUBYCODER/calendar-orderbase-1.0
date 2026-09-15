@@ -1,0 +1,6 @@
+{
+  "name": "Calendar Orderbase",
+  "description": "Production calendar and order management system for tracking batches, samples, and manufacturing stages",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

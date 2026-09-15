@@ -1,0 +1,26 @@
+{
+  "name": "calendar-orderbase",
+  "version": "1.0.0",
+  "description": "Calendar and order management system",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "node -e \"console.log('Build complete')\"",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "connect-flash": "^0.1.1",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "glob": "^13.0.6",
+    "multer": "^2.3.0",
+    "nunjucks": "^3.2.4"
+  },
+  "devDependencies": {
+    "jsdom": "^30.0.1"
+  }
+}

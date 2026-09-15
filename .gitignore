@@ -1,0 +1,5 @@
+node_modules/
+*.cjs
+calendar.db
+app/static/uploads/temp/
+.DS_Store
